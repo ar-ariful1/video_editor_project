@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "642473948656",
+    "project_id": "clipcut-e2d7d",
+    "storage_bucket": "clipcut-e2d7d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:642473948656:android:828efe74da0d9a4d795935",
+        "android_client_info": {
+          "package_name": "com.clipcut.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOZ7CqaS5yl2iMwWUrDoXOvHu6WndeebQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
