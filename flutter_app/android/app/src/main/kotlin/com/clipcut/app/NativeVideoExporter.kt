@@ -1,239 +1,134 @@
-package com.clipcut.app
+#include <jni.h>
+#include <string>
+#include <android/log.h>
+#include "cut_detection/scene_detector.h"
+#include "beat_sync/bpm_detector.h"
+#include "subtitle/subtitle_engine.h"
+#include "tracking/object_tracker.h"
 
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
-import android.media.MediaMuxer
-import android.util.Log
-import android.view.Surface
+#define TAG "AI_Engine_Native"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 
-class NativeVideoExporter {
+using namespace ClipCut;
+using namespace ClipCut::AI;
 
-    enum class QualityPreset(val bitrateMultiplier: Float, val useHEVC: Boolean) {
-        FAST(0.7f, false),
-        STANDARD(1.0f, false),
-        HIGH(1.5f, true),
-        PRO_HEVC(2.2f, true)
-    }
+static SceneDetector* gSceneDetector = nullptr;
+static ObjectTracker* gObjectTracker = nullptr;
 
-    private var videoEncoder: MediaCodec? = null
-    private var audioEncoder: MediaCodec? = null
-    private var muxer: MediaMuxer? = null
-    private var inputSurface: Surface? = null
+// Global engine state (simplified – you can expand later)
+static bool engineInitialized = false;
+static int outputWidth = 1920, outputHeight = 1080;
+static std::string currentTimelineJson;
 
-    private var videoTrackIndex = -1
-    private var audioTrackIndex = -1
-    private var isMuxerStarted = false
+extern "C" {
 
-    private val videoBufferInfo = MediaCodec.BufferInfo()
-    private val audioBufferInfo = MediaCodec.BufferInfo()
+// ========== REQUIRED JNI FUNCTIONS for NativeVideoExporter ==========
 
-    private var videoPtsUs = 0L
-    private var audioPtsUs = 0L
-    private var fps = 30
+// Add these methods inside NativeVideoExporter class
 
-    companion object {
-        init {
-            try {
-                System.loadLibrary("video_engine")
-            } catch (e: Exception) {
-                Log.e("NativeVideoExporter", "Failed to load video_engine: ${e.message}")
-            }
-        }
-    }
+external fun setVolume(clipId: String, volume: Float)
+external fun setCrop(clipId: String, left: Float, top: Float, right: Float, bottom: Float)
+external fun applyEffect(clipId: String, effectId: String, params: String)
+external fun getPreviewTextureId(): Int
+external fun renderFrame(timeSeconds: Double)
 
-    private external fun nInitEngine()
-    private external fun nReleaseEngine()
-    private external fun nUpdateTimeline(json: String)
-    private external fun nProcessTimelineFrame(timeUs: Long)
-    private external fun nSetOutputResolution(width: Int, height: Int)
-    private external fun nApplyAISegmentation(textureId: Int)
 
-    fun setup(path: String, width: Int, height: Int, fps: Int, quality: QualityPreset, projectJson: String) {
-        this.fps = fps
-        
-        nInitEngine()
-        nSetOutputResolution(width, height)
-        nUpdateTimeline(projectJson)
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nInitEngine(JNIEnv*, jobject) {
+    LOGI("nInitEngine called");
+    engineInitialized = true;
+    // TODO: initialize your actual video processing engine here
+}
 
-        val videoMime = if (quality.useHEVC) {
-            MediaFormat.MIMETYPE_VIDEO_HEVC
-        } else {
-            MediaFormat.MIMETYPE_VIDEO_AVC
-        }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nReleaseEngine(JNIEnv*, jobject) {
+    LOGI("nReleaseEngine called");
+    engineInitialized = false;
+    // TODO: clean up resources
+}
 
-        val videoFormat = MediaFormat.createVideoFormat(videoMime, width, height).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, (width * height * fps * 0.12f * quality.bitrateMultiplier).toInt())
-            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-        }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nUpdateTimeline(JNIEnv* env, jobject, jstring json) {
+    const char* jsonStr = env->GetStringUTFChars(json, nullptr);
+    currentTimelineJson = jsonStr;
+    LOGI("nUpdateTimeline: %s", jsonStr);
+    env->ReleaseStringUTFChars(json, jsonStr);
+    // TODO: parse JSON and build internal timeline representation
+}
 
-        videoEncoder = MediaCodec.createEncoderByType(videoMime).apply {
-            configure(videoFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            inputSurface = createInputSurface()
-            start()
-        }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nProcessTimelineFrame(JNIEnv*, jobject, jlong timeUs) {
+    // This is called for every frame during export
+    // TODO: render the frame at timeUs into the encoder's input surface
+    // For now, just log
+    // LOGI("nProcessTimelineFrame time=%lld", timeUs);
+}
 
-        val audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 44100, 2).apply {
-            setInteger(MediaFormat.KEY_BIT_RATE, 192000)
-            setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
-        }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nSetOutputResolution(JNIEnv*, jobject, jint width, jint height) {
+    outputWidth = width;
+    outputHeight = height;
+    LOGI("nSetOutputResolution %dx%d", width, height);
+}
 
-        audioEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC).apply {
-            configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            start()
-        }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nApplyAISegmentation(JNIEnv*, jobject, jint textureId) {
+    LOGI("nApplyAISegmentation textureId=%d", textureId);
+    // TODO: implement AI segmentation on the given OpenGL texture
+}
 
-        muxer = MediaMuxer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+// ========== Existing AI functions ==========
 
-        videoTrackIndex = -1
-        audioTrackIndex = -1
-        isMuxerStarted = false
-        videoPtsUs = 0L
-        audioPtsUs = 0L
-    }
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nStartSceneDetection(JNIEnv*, jobject) {
+    delete gSceneDetector;
+    gSceneDetector = new SceneDetector();
+}
 
-    fun getInputSurface(): Surface? = inputSurface
-
-    fun renderFrame(timeUs: Long) {
-        nProcessTimelineFrame(timeUs)
-    }
-
-    private fun tryStartMuxer() {
-        if (!isMuxerStarted && videoTrackIndex != -1 && audioTrackIndex != -1) {
-            muxer?.start()
-            isMuxerStarted = true
-        }
-    }
-
-    fun drainVideo(endOfStream: Boolean) {
-        if (endOfStream) {
-            try {
-                videoEncoder?.signalEndOfInputStream()
-            } catch (e: Exception) {
-                Log.e("NativeVideoExporter", "signalEndOfInputStream failed: ${e.message}")
-            }
-        }
-
-        while (true) {
-            val index = videoEncoder?.dequeueOutputBuffer(videoBufferInfo, 10_000) ?: break
-
-            when {
-                index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                    videoTrackIndex = muxer?.addTrack(videoEncoder!!.outputFormat) ?: -1
-                    tryStartMuxer()
-                }
-
-                index >= 0 -> {
-                    val outputBuffer = videoEncoder?.getOutputBuffer(index)
-                    if (outputBuffer != null &&
-                        videoBufferInfo.size > 0 &&
-                        isMuxerStarted &&
-                        (videoBufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0)
-                    ) {
-                        outputBuffer.position(videoBufferInfo.offset)
-                        outputBuffer.limit(videoBufferInfo.offset + videoBufferInfo.size)
-
-                        val pts = videoPtsUs
-                        videoPtsUs += 1_000_000L / maxOf(1, fps)
-                        videoBufferInfo.presentationTimeUs = pts
-
-                        muxer?.writeSampleData(videoTrackIndex, outputBuffer, videoBufferInfo)
-                    }
-                    videoEncoder?.releaseOutputBuffer(index, false)
-
-                    if (videoBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                        break
-                    }
-                }
-
-                index == MediaCodec.INFO_TRY_AGAIN_LATER -> break
-                else -> break
-            }
-        }
-    }
-
-    fun drainAudio(pcmData: ByteArray) {
-        val encoder = audioEncoder ?: return
-
-        val inputIndex = encoder.dequeueInputBuffer(10_000)
-        if (inputIndex >= 0) {
-            val inputBuffer = encoder.getInputBuffer(inputIndex)
-            if (inputBuffer != null) {
-                inputBuffer.clear()
-                inputBuffer.put(pcmData)
-
-                val pts = audioPtsUs
-                val durationUs = ((pcmData.size / 4).toLong() * 1_000_000L) / 44100L
-                audioPtsUs += durationUs
-
-                encoder.queueInputBuffer(inputIndex, 0, pcmData.size, pts, 0)
-            }
-        }
-
-        while (true) {
-            val outputIndex = encoder.dequeueOutputBuffer(audioBufferInfo, 10_000)
-
-            when {
-                outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                    audioTrackIndex = muxer?.addTrack(encoder.outputFormat) ?: -1
-                    tryStartMuxer()
-                }
-
-                outputIndex >= 0 -> {
-                    val outputBuffer = encoder.getOutputBuffer(outputIndex)
-                    if (outputBuffer != null &&
-                        audioBufferInfo.size > 0 &&
-                        isMuxerStarted &&
-                        (audioBufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0)
-                    ) {
-                        outputBuffer.position(audioBufferInfo.offset)
-                        outputBuffer.limit(audioBufferInfo.offset + audioBufferInfo.size)
-                        muxer?.writeSampleData(audioTrackIndex, outputBuffer, audioBufferInfo)
-                    }
-                    encoder.releaseOutputBuffer(outputIndex, false)
-                }
-
-                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> break
-                else -> break
-            }
-        }
-    }
-
-    fun release() {
-        nReleaseEngine()
-        try {
-            inputSurface?.release()
-        } catch (_: Exception) {}
-
-        try {
-            videoEncoder?.stop()
-        } catch (_: Exception) {}
-        try {
-            audioEncoder?.stop()
-        } catch (_: Exception) {}
-
-        try {
-            videoEncoder?.release()
-        } catch (_: Exception) {}
-        try {
-            audioEncoder?.release()
-        } catch (_: Exception) {}
-
-        try {
-            if (isMuxerStarted) muxer?.stop()
-        } catch (_: Exception) {}
-        try {
-            muxer?.release()
-        } catch (_: Exception) {}
-
-        videoEncoder = null
-        audioEncoder = null
-        muxer = null
-        inputSurface = null
-        videoTrackIndex = -1
-        audioTrackIndex = -1
-        isMuxerStarted = false
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nAnalyzeFrameForAI(JNIEnv* env, jobject,
+                                                             jbyteArray rgba, jint w, jint h, jlong timeUs) {
+    if (!gSceneDetector) return;
+    jbyte* data = env->GetByteArrayElements(rgba, nullptr);
+    if (data) {
+        gSceneDetector->processFrame((uint8_t*)data, w, h, timeUs);
+        env->ReleaseByteArrayElements(rgba, data, JNI_ABORT);
     }
 }
+
+JNIEXPORT jstring JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nStopSceneDetection(JNIEnv* env, jobject) {
+    if (!gSceneDetector) return env->NewStringUTF("{}");
+    std::string result = gSceneDetector->getJsonResult();
+    delete gSceneDetector;
+    gSceneDetector = nullptr;
+    return env->NewStringUTF(result.c_str());
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nAnalyzeAudioBeats(JNIEnv* env, jobject, jshortArray pcm) {
+    BPMDetector detector;
+    jshort* data = env->GetShortArrayElements(pcm, nullptr);
+    jsize len = env->GetArrayLength(pcm);
+    detector.processAudio(data, len);
+    std::string result = detector.detectBeats();
+    env->ReleaseShortArrayElements(pcm, data, JNI_ABORT);
+    return env->NewStringUTF(result.c_str());
+}
+
+JNIEXPORT void JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nStartTracking(JNIEnv*, jobject) {
+    delete gObjectTracker;
+    gObjectTracker = new ObjectTracker();
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_clipcut_app_NativeVideoExporter_nStopTracking(JNIEnv* env, jobject) {
+    if (!gObjectTracker) return env->NewStringUTF("{}");
+    std::string result = gObjectTracker->getTrackingDataJson();
+    delete gObjectTracker;
+    gObjectTracker = nullptr;
+    return env->NewStringUTF(result.c_str());
+}
+
+} // extern "C"

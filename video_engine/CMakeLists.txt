@@ -9,29 +9,25 @@ if(ANDROID)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math -Wall -fPIC")
 endif()
 
-file(GLOB_RECURSE ENGINE_SOURCES
-    "src/**/*.cpp"
-)
+file(GLOB_RECURSE ENGINE_SOURCES "src/**/*.cpp")
 
 add_library(video_engine SHARED ${ENGINE_SOURCES})
 
 target_include_directories(video_engine PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/effects
     ${CMAKE_CURRENT_SOURCE_DIR}/src/audio
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compositor
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/cut_detection
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/beat_sync      
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/subtitle       
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/tracking       
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/beat_sync
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/subtitle
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai_modules/tracking
 )
 
 target_link_libraries(video_engine
     android
     log
     mediandk
+    nativewindow
     GLESv3
     EGL
     m

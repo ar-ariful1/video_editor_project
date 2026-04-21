@@ -1,110 +1,110 @@
-// video_engine/src/audio/audio_mixer.cpp
 #include "audio_mixer.h"
-#include <cstring>
 #include <algorithm>
-#include <cmath>
-#include <numeric>
+#include <cstring>
 
 namespace VideoEngine {
-// ... (keep all BiQuad helpers as you had them)
 
-AudioMixer::AudioMixer(int sample_rate, int channels)
-    : sample_rate_(sample_rate), channels_(channels) {}
-
+AudioMixer::AudioMixer(int rate, int ch) : sample_rate_(rate), channels_(ch) {}
 AudioMixer::~AudioMixer() = default;
 
-// Now using AudioTrackDesc
-void AudioMixer::addTrack(const AudioTrackDesc& track) {
-    std::lock_guard<std::mutex> lk(mutex_);
-    tracks_[track.id] = track;
-    track_states_[track.id] = TrackState{};
+void AudioMixer::addTrack(const AudioTrackDesc& t) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    tracks_[t.id] = t;
+    track_states_[t.id] = TrackState{};
 }
 
 void AudioMixer::removeTrack(const std::string& id) {
-    std::lock_guard<std::mutex> lk(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     tracks_.erase(id);
     track_states_.erase(id);
 }
 
 void AudioMixer::updateTrack(const std::string& id, const AudioTrackDesc& desc) {
-    std::lock_guard<std::mutex> lk(mutex_);
-    tracks_[id] = desc;
-}
-
-// Feed samples (you can keep as is)
-void AudioMixer::feedSamples(const std::string& track_id,
-                             const std::vector<float>& samples,
-                             double pts) {
-    std::lock_guard<std::mutex> lk(mutex_);
-    buffers_[track_id] = samples;
-    // ignore pts for now
-}
-
-
-// ========== ADD THESE IMPLEMENTATIONS ==========
-
-std::vector<float> AudioMixer::processTrack(
-    const std::vector<float>& input,
-    const AudioTrackDesc& track,
-    TrackState& state,
-    double time)
-{
-    // Simple pass-through for now (you can add EQ/fade later)
-    return input;  // Return unchanged samples
-}
-
-void AudioMixer::processMasterBus(std::vector<float>& samples, int n) {
-    // Apply master volume only
-    for (float& s : samples) {
-        s *= master_volume_;
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (tracks_.find(id) != tracks_.end()) {
+        tracks_[id] = desc;
     }
 }
 
-// Main mix - matches header
-std::vector<float> AudioMixer::mix(
-    const std::unordered_map<std::string, std::vector<float>>& track_samples,
-    int num_samples,
-    double current_time)
-{
-    std::lock_guard<std::mutex> lk(mutex_);
-    const int total = num_samples * channels_;
-    std::vector<float> output(total, 0.0f);
+void AudioMixer::setTrackVolume(const std::string& id, float volume) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (tracks_.find(id) != tracks_.end()) {
+        tracks_[id].volume = volume;
+    }
+}
 
-    for (auto& [id, samples] : track_samples) {
+std::vector<float> AudioMixer::mix(const std::unordered_map<std::string, std::vector<float>>& track_samples,
+                                   int num_samples, double current_time) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    int total = num_samples * channels_;
+    std::vector<float> output(total, 0.0f);
+    
+    for (const auto& pair : track_samples) {
+        const std::string& id = pair.first;
+        const std::vector<float>& samples = pair.second;
         auto it = tracks_.find(id);
         if (it == tracks_.end()) continue;
-        const auto& track = it->second;
-        auto& state       = track_states_[id];
-
-        if (samples.empty()) continue;
-
-        std::vector<float> processed = processTrack(samples, track, state, current_time);
-        for (int i = 0; i < total && i < (int)processed.size(); i++) {
+        
+        auto& state = track_states_[id];
+        std::vector<float> processed = processTrack(samples, it->second, state, current_time);
+        for (size_t i = 0; i < processed.size() && i < output.size(); ++i) {
             output[i] += processed[i];
         }
     }
+    
     processMasterBus(output, num_samples);
     return output;
 }
 
-// Alternative mix (if needed)
-MixedFrame AudioMixer::mix(double time_seconds, int num_samples) {
-    // Implement if required, or just return empty
-    MixedFrame frame;
-    return frame;
+std::vector<float> AudioMixer::processTrack(const std::vector<float>& input,
+                                            const AudioTrackDesc& track,
+                                            TrackState& state,
+                                            double time) {
+    std::vector<float> out = input;
+    int n = out.size() / channels_;
+    
+    // Volume
+    float gain = track.volume;
+    
+    // Fade in/out
+    if (track.fade_in_sec > 0 || track.fade_out_sec > 0) {
+        for (int i = 0; i < n; ++i) {
+            double t = time + (double)i / sample_rate_;
+            double fadeGain = 1.0;
+            if (track.fade_in_sec > 0 && t < track.start_time + track.fade_in_sec) {
+                fadeGain *= (t - track.start_time) / track.fade_in_sec;
+            }
+            if (track.fade_out_sec > 0 && t > track.end_time - track.fade_out_sec) {
+                fadeGain *= (track.end_time - t) / track.fade_out_sec;
+            }
+            gain *= fadeGain;
+        }
+    }
+    
+    // Apply gain
+    for (float& s : out) s *= gain;
+    
+    // Simple pan (stereo only)
+    if (channels_ == 2 && track.pan != 0.0f) {
+        float left = (track.pan <= 0) ? 1.0f : 1.0f - track.pan;
+        float right = (track.pan >= 0) ? 1.0f : 1.0f + track.pan;
+        for (int i = 0; i < n; ++i) {
+            out[i*2] *= left;
+            out[i*2+1] *= right;
+        }
+    }
+    
+    return out;
 }
 
-// processTrack – keep your existing implementation (it already matches AudioTrackDesc)
-// processMasterBus – keep as is
+void AudioMixer::processMasterBus(std::vector<float>& samples, int n) {
+    for (float& s : samples) s *= master_volume_;
+}
 
-void AudioMixer::setMasterVolume(float v) { master_volume_ = std::clamp(v, 0.0f, 2.0f); }
+void AudioMixer::setMasterVolume(float v) {
+    master_volume_ = std::max(0.0f, std::min(2.0f, v));
+}
+
 float AudioMixer::masterVolume() const { return master_volume_; }
-void AudioMixer::setMuteAll(bool mute) { mute_all_ = mute; }
-void AudioMixer::flush() { buffers_.clear(); }
 
-// stub for unused methods
-void AudioMixer::applyEQ(std::vector<float>&, const float[10]) {}
-void AudioMixer::applyFade(std::vector<float>&, double, double, double, float, float, int) {}
-void AudioMixer::applyPan(std::vector<float>&, float) {}
-
-} // namespace VideoEngine
+} // namespace

@@ -1,0 +1,31 @@
+{
+  "name": "video-editor-backend",
+  "version": "1.0.0",
+  "description": "AWS Lambda backend for Video Editor Pro",
+  "private": true,
+  "scripts": {
+    "deploy": "serverless deploy --stage prod",
+    "deploy:dev": "serverless deploy --stage dev",
+    "remove": "serverless remove",
+    "logs:auth": "serverless logs -f auth --tail",
+    "logs:projects": "serverless logs -f projects --tail",
+    "logs:templates": "serverless logs -f templates --tail",
+    "logs:subscriptions": "serverless logs -f subscriptions --tail",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.511.0",
+    "@aws-sdk/s3-request-presigner": "^3.511.0",
+    "bcryptjs": "^2.4.3",
+    "firebase-admin": "^12.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.9",
+    "otplib": "^12.0.1",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "serverless": "^3.38.0"
+  }
+}

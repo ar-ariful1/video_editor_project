@@ -1,0 +1,47 @@
+// admin_panel/package.json
+{
+  "name": "video-editor-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3",
+    "@types/react": "^18.2.55",
+    "@types/node": "^20.11.16",
+
+    "recharts": "^2.10.3",
+    "lucide-react": "^0.323.0",
+    "clsx": "^2.1.0",
+
+    "jsonwebtoken": "^9.0.2",
+    "@types/jsonwebtoken": "^9.0.5",
+    "bcryptjs": "^2.4.3",
+    "@types/bcryptjs": "^2.4.6",
+    "otplib": "^12.0.1",
+    "nodemailer": "^6.9.9",
+    "@types/nodemailer": "^6.4.14",
+
+    "pg": "^8.11.3",
+    "@types/pg": "^8.11.0",
+    "uuid": "^9.0.0",
+    "@types/uuid": "^9.0.7",
+
+    "crypto": "*"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.1.0",
+    "tailwindcss": "^3.4.1",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.33"
+  }
+}

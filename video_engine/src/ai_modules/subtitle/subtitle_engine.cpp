@@ -1,15 +1,5 @@
 #include "subtitle_engine.h"
-#include <sstream>
-
 namespace ClipCut {
-
-void SubtitleEngine::processAudio(const float* samples, int count, int sample_rate) {
-    // Stub
-    (void)samples; (void)count; (void)sample_rate;
+void SubtitleEngine::processAudio(const float*, int, int) {}
+std::string SubtitleEngine::generateSubtitles() { return "{\"subtitles\":[]}"; }
 }
-
-std::string SubtitleEngine::generateSubtitles() {
-    return "{\"subtitles\": []}";
-}
-
-} // namespace ClipCut

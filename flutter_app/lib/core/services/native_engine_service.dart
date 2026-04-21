@@ -76,6 +76,63 @@ class NativeEngineService {
   // 🚀 NATIVE EXPORT ENGINE (MAIN)
   // ─────────────────────────────────────────────
 
+  // Add these methods to the existing class
+
+Future<void> setVolume(String clipId, double volume) async {
+  try {
+    await _nativeChannel.invokeMethod('setVolume', {
+      'clipId': clipId,
+      'volume': volume,
+    });
+  } catch (e) {
+    debugPrint('setVolume error: $e');
+  }
+}
+
+Future<void> setCrop(String clipId, Rect cropRect) async {
+  try {
+    await _nativeChannel.invokeMethod('setCrop', {
+      'clipId': clipId,
+      'left': cropRect.left,
+      'top': cropRect.top,
+      'right': cropRect.right,
+      'bottom': cropRect.bottom,
+    });
+  } catch (e) {
+    debugPrint('setCrop error: $e');
+  }
+}
+
+Future<void> applyEffect(String clipId, String effectId, Map<String, dynamic> params) async {
+  try {
+    await _nativeChannel.invokeMethod('applyEffect', {
+      'clipId': clipId,
+      'effectId': effectId,
+      'params': params,
+    });
+  } catch (e) {
+    debugPrint('applyEffect error: $e');
+  }
+}
+
+Future<int?> getPreviewTextureId() async {
+  try {
+    final id = await _nativeChannel.invokeMethod<int>('getPreviewTextureId');
+    return id;
+  } catch (e) {
+    debugPrint('getPreviewTextureId error: $e');
+    return null;
+  }
+}
+
+Future<void> renderFrame(double timeSeconds) async {
+  try {
+    await _nativeChannel.invokeMethod('renderFrame', {'time': timeSeconds});
+  } catch (e) {
+    // ignore
+  }
+}
+
   Future<String?> startNativeExport({
     required VideoProject project,
     required String outputPath,

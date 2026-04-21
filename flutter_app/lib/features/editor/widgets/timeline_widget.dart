@@ -122,20 +122,19 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         // Scrollable timeline body
         Expanded(
           child: Listener(
-            onPointerSignal: (e) {
-              if (e is PointerScrollEvent) {
-                final bloc = context.read<TimelineBloc>();
-                if (e.kind == PointerDeviceKind.trackpad &&
-                    e.scrollDelta.dx == 0) {
-                  // Pinch-zoom on trackpad
-                  final factor = e.scrollDelta.dy > 0 ? 0.9 : 1.1;
-                  bloc.add(SetZoom(widget.zoom * factor));
-                } else {
-                  _hScroll.jumpTo((_hScroll.offset + e.scrollDelta.dx)
-                      .clamp(0, _hScroll.position.maxScrollExtent));
-                }
-              }
-            },
+            // In the Listener widget's onPointerSignal:
+onPointerSignal: (event) {
+  if (event is PointerScrollEvent) {
+    // Check if it's a trackpad pinch gesture
+    if (event.kind == PointerDeviceKind.trackpad && event.scrollDelta.dx == 0) {
+      final factor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+      context.read<TimelineBloc>().add(SetZoom(widget.zoom * factor));
+    } else {
+      // Normal scroll - horizontal only
+      _scrollController.jumpTo(_scrollController.offset + event.scrollDelta.dx);
+    }
+  }
+}
             child: Stack(children: [
               // Tracks + clips
               SingleChildScrollView(

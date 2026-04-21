@@ -180,7 +180,16 @@ class _EQBand extends StatelessWidget {
             child: RotatedBox(
               quarterTurns: 3,
               child:
-                  Slider(value: value, min: -12, max: 12, onChanged: onChanged),
+              Slider(
+                  value: volume,
+                   min: 0.0,
+                   max: 2.0,
+                   onChanged: (newVol) {
+                   setState(() => volume = newVol);
+                    // Send to native engine
+                    NativeEngineService().setVolume(widget.clipId, newVol);
+                },
+                 )
             ),
           ),
           Text('${value.toInt() > 0 ? '+' : ''}${value.toInt()}dB',

@@ -192,6 +192,14 @@ class _CropPanelState extends State<CropPanel> {
       ]),
     );
   }
+  
+
+  // When user confirms crop:
+void _applyCrop() {
+  final cropRect = Rect.fromLTWH(cropLeft, cropTop, cropWidth, cropHeight);
+  NativeEngineService().setCrop(widget.clipId, cropRect);
+  Navigator.pop(context);
+}
 
   void _apply(BuildContext context) {
     final state = context.read<TimelineBloc>().state;

@@ -1,0 +1,107 @@
+service: video-editor-backend
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'prod'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    DATABASE_URL: ${ssm:/video-editor/${sls:stage}/database-url}
+    JWT_SECRET:   ${ssm:/video-editor/${sls:stage}/jwt-secret}
+    FIREBASE_PROJECT_ID:   ${ssm:/video-editor/${sls:stage}/firebase-project-id}
+    FIREBASE_CLIENT_EMAIL: ${ssm:/video-editor/${sls:stage}/firebase-client-email}
+    FIREBASE_PRIVATE_KEY:  ${ssm:/video-editor/${sls:stage}/firebase-private-key}
+    S3_BUCKET:    video-editor-${sls:stage}-assets
+    CDN_DOMAIN:   cdn.videoeditorpro.app
+    AWS_REGION:   ${aws:region}
+    EXPORT_QUEUE_URL: ${ssm:/video-editor/${sls:stage}/export-queue-url}
+    REVENUECAT_WEBHOOK_SECRET: ${ssm:/video-editor/${sls:stage}/revenuecat-secret}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+          Resource: arn:aws:s3:::video-editor-${sls:stage}-assets/*
+        - Effect: Allow
+          Action: [sqs:SendMessage, sqs:ReceiveMessage, sqs:DeleteMessage]
+          Resource: !GetAtt ExportQueue.Arn
+
+functions:
+  auth:
+    handler: functions/auth/index.handler
+    events:
+      - http: { path: /auth/register, method: POST, cors: true }
+      - http: { path: /auth/login, method: POST, cors: true }
+      - http: { path: /users/me, method: GET, cors: true }
+      - http: { path: /users/me, method: PATCH, cors: true }
+      - http: { path: /users/{userId}/fcm-token, method: POST, cors: true }
+  projects:
+    handler: functions/projects/index.handler
+    timeout: 30
+    events:
+      - http: { path: /projects, method: GET, cors: true }
+      - http: { path: /projects, method: POST, cors: true }
+      - http: { path: /projects/{projectId}, method: GET, cors: true }
+      - http: { path: /projects/{projectId}, method: PUT, cors: true }
+      - http: { path: /projects/{projectId}, method: DELETE, cors: true }
+      - http: { path: /projects/{projectId}/upload-url, method: POST, cors: true }
+  templates:
+    handler: functions/templates/index.handler
+    events:
+      - http: { path: /templates, method: GET, cors: true }
+      - http: { path: /templates/{templateId}, method: GET, cors: true }
+      - http: { path: /templates/{templateId}/download, method: POST, cors: true }
+  subscriptions:
+    handler: functions/subscriptions/index.handler
+    events:
+      - http: { path: /subscriptions/status, method: GET, cors: true }
+      - http: { path: /subscriptions/webhook, method: POST, cors: true }
+  analytics:
+    handler: functions/analytics/index.handler
+    events:
+      - http: { path: /analytics/events, method: POST, cors: true }
+  notifications:
+    handler: functions/notifications/index.handler
+    events:
+      - http: { path: /notifications/register-token, method: POST, cors: true }
+      - http: { path: /notifications/internal/broadcast, method: POST, cors: true }
+      - http: { path: /notifications/internal/export-complete, method: POST, cors: true }
+  exports:
+    handler: functions/exports/index.handler
+    timeout: 60
+    events:
+      - http: { path: /exports, method: GET, cors: true }
+      - http: { path: /exports, method: POST, cors: true }
+      - http: { path: /exports/{jobId}, method: GET, cors: true }
+      - http: { path: /exports/{jobId}, method: DELETE, cors: true }
+      - http: { path: /exports/internal/progress, method: PATCH, cors: true }
+  assets:
+    handler: functions/assets/index.handler
+    events:
+      - http: { path: /assets/music, method: GET, cors: true }
+      - http: { path: /assets/sfx, method: GET, cors: true }
+      - http: { path: /assets/sticker-packs, method: GET, cors: true }
+      - http: { path: /assets/fonts, method: GET, cors: true }
+      - http: { path: /assets/favorites, method: GET, cors: true }
+      - http: { path: /assets/favorites, method: POST, cors: true }
+      - http: { path: /assets/upload-url, method: POST, cors: true }
+
+resources:
+  Resources:
+    ExportQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: video-editor-exports-${sls:stage}.fifo
+        FifoQueue: true
+        MessageRetentionPeriod: 86400
+        VisibilityTimeout: 300
+    AssetsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: video-editor-${sls:stage}-assets
+
+plugins:
+  - serverless-offline

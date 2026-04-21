@@ -1,0 +1,7 @@
+openai-whisper==20231117
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+torch==2.1.2
+torchaudio==2.1.2
+python-multipart==0.0.9
+pydantic==2.6.1

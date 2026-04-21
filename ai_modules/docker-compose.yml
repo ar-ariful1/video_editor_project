@@ -1,0 +1,169 @@
+# ai_modules/docker-compose.yml
+# All 5 AI microservices + shared GPU access
+
+version: "3.9"
+
+x-gpu-deploy: &gpu-deploy
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: 1
+          capabilities: [gpu]
+
+x-common-env: &common-env
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+services:
+
+  # ── Whisper Auto-Captions ──────────────────────────────────────────────────
+  whisper:
+    build:
+      context: ./whisper_service
+      dockerfile: Dockerfile
+    container_name: whisper_service
+    ports:
+      - "8001:8001"
+    environment:
+      <<: *common-env
+      WHISPER_MODEL_SIZE: small
+    volumes:
+      - whisper_models:/root/.cache/whisper
+    deploy:
+      <<: *gpu-deploy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Background Removal ────────────────────────────────────────────────────
+  rmbg:
+    build:
+      context: ./rmbg_service
+      dockerfile: Dockerfile
+    container_name: rmbg_service
+    ports:
+      - "8002:8002"
+    environment:
+      <<: *common-env
+      RMBG_MODEL_PATH: /models/rmbg.onnx
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      <<: *gpu-deploy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── YOLOv8 Object Tracking ────────────────────────────────────────────────
+  yolo:
+    build:
+      context: ./yolo_service
+      dockerfile: Dockerfile
+    container_name: yolo_service
+    ports:
+      - "8003:8003"
+    environment:
+      <<: *common-env
+      YOLO_MODEL_PATH: /models/yolov8n.onnx
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      <<: *gpu-deploy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Beat Detection ─────────────────────────────────────────────────────────
+  beats:
+    build:
+      context: ./beats_service
+      dockerfile: Dockerfile
+    container_name: beats_service
+    ports:
+      - "8004:8004"
+    environment:
+      <<: *common-env
+      BEATS_MODEL_PATH: /models/beats.onnx
+    volumes:
+      - ./models:/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Real-ESRGAN 4K Upscaling ──────────────────────────────────────────────
+  esrgan:
+    build:
+      context: ./esrgan_service
+      dockerfile: Dockerfile
+    container_name: esrgan_service
+    ports:
+      - "8005:8005"
+    environment:
+      <<: *common-env
+      ESRGAN_MODEL_PATH: /models/realesrgan_x4.onnx
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      <<: *gpu-deploy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── SAM Smart Cutout ───────────────────────────────────────────────────────
+  segment:
+    build:
+      context: ./segment_service
+      dockerfile: Dockerfile
+    container_name: segment_service
+    ports:
+      - "8006:8006"
+    environment:
+      <<: *common-env
+      SAM_ENCODER_MODEL: /models/sam_vit_b_encoder.onnx
+      SAM_DECODER_MODEL: /models/sam_vit_b_decoder.onnx
+    volumes:
+      - ./models:/models:ro
+    deploy:
+      <<: *gpu-deploy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Nginx API Gateway ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ai_gateway
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - whisper
+      - rmbg
+      - yolo
+      - beats
+      - esrgan
+      - segment
+    restart: unless-stopped
+
+volumes:
+  whisper_models:

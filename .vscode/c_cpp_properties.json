@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Android",
+            "includePath": [
+                "${workspaceFolder}/video_engine/src",
+                "${workspaceFolder}/video_engine/src/ai_modules",
+                "${workspaceFolder}/video_engine/src/ai_modules/cut_detection",
+                "${workspaceFolder}/video_engine/src/ai_modules/beat_sync",
+                "${workspaceFolder}/video_engine/src/ai_modules/subtitle",
+                "${workspaceFolder}/video_engine/src/ai_modules/tracking",
+                "${workspaceFolder}/video_engine/src/audio",
+                "D:/Development/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include",
+                "D:/Development/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1"
+            ],
+            "compilerPath": "D:/Development/Android/Sdk/ndk/28.2.13676358/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "android-clang-arm64"
+        }
+    ],
+    "version": 4
+}
