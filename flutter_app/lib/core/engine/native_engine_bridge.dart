@@ -97,7 +97,10 @@ class NativeEngineBridge {
     if (result is Uint8List) return result;
     return null;
   }
-
+  
+  Future<void> cancelExport() async {
+  await _channel.invokeMethod('cancelExport');
+}
   // --------------------------------------------------------------------------
   // Export
   // --------------------------------------------------------------------------
