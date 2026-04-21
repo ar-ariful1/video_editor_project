@@ -303,6 +303,39 @@ class _StyleTab extends StatelessWidget {
             label: 'Background Box',
             value: (layer?.backgroundOpacity ?? 0) > 0,
             onChanged: (_) {}),
+        const SizedBox(height: 16),
+        const Text('Gradient Fill',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [Colors.blue, Colors.purple]),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [Colors.orange, Colors.red]),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.add_circle_outline, color: AppTheme.accent),
+            ),
+          ],
+        ),
       ]),
     );
   }

@@ -1,3 +1,4 @@
+// GLRenderEngine.kt
 package com.clipcut.app
 
 import android.graphics.Bitmap
@@ -16,6 +17,7 @@ class GLRenderEngine {
     private var programVideo = 0
     private var programOverlay = 0
 
+    // Uniform locations for video shader
     private var uMatrixVideo = -1
     private var uOpacityVideo = -1
     private var uBrightnessVideo = -1
@@ -24,17 +26,21 @@ class GLRenderEngine {
     private var uUseNextVideo = -1
     private var uTransitionTypeVideo = -1
     private var uTransitionProgressVideo = -1
+    private var uTextureVideo = -1
+    private var uNextTextureVideo = -1
 
+    // Uniform locations for overlay shader
     private var uMatrixOverlay = -1
     private var uOpacityOverlay = -1
+    private var uTextureOverlay = -1
 
+    // Vertex data: position (x,y) and texcoord (u,v)
     private val vertexData = floatArrayOf(
         -1f, -1f, 0f, 0f,
-        1f, -1f, 1f, 0f,
+         1f, -1f, 1f, 0f,
         -1f,  1f, 0f, 1f,
-        1f,  1f, 1f, 1f
+         1f,  1f, 1f, 1f
     )
-
     private val vertexBuffer: FloatBuffer =
         ByteBuffer.allocateDirect(vertexData.size * 4)
             .order(ByteOrder.nativeOrder())
@@ -43,6 +49,9 @@ class GLRenderEngine {
                 put(vertexData)
                 position(0)
             }
+
+    private var viewportWidth: Int = 1
+    private var viewportHeight: Int = 1
 
     fun initGL(surface: Surface) {
         eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
@@ -102,6 +111,7 @@ class GLRenderEngine {
         programVideo = createProgram(VERTEX_SHADER, FRAGMENT_VIDEO_SHADER)
         programOverlay = createProgram(VERTEX_SHADER, FRAGMENT_OVERLAY_SHADER)
 
+        // Video shader uniforms
         uMatrixVideo = GLES30.glGetUniformLocation(programVideo, "uMatrix")
         uOpacityVideo = GLES30.glGetUniformLocation(programVideo, "uOpacity")
         uBrightnessVideo = GLES30.glGetUniformLocation(programVideo, "uBrightness")
@@ -110,15 +120,36 @@ class GLRenderEngine {
         uUseNextVideo = GLES30.glGetUniformLocation(programVideo, "uUseNext")
         uTransitionTypeVideo = GLES30.glGetUniformLocation(programVideo, "uTransitionType")
         uTransitionProgressVideo = GLES30.glGetUniformLocation(programVideo, "uTransitionProgress")
+        uTextureVideo = GLES30.glGetUniformLocation(programVideo, "uTexture")
+        uNextTextureVideo = GLES30.glGetUniformLocation(programVideo, "uNextTexture")
 
+        // Overlay shader uniforms
         uMatrixOverlay = GLES30.glGetUniformLocation(programOverlay, "uMatrix")
         uOpacityOverlay = GLES30.glGetUniformLocation(programOverlay, "uOpacity")
+        uTextureOverlay = GLES30.glGetUniformLocation(programOverlay, "uTexture")
+    }
+
+    fun setViewport(width: Int, height: Int) {
+        viewportWidth = width
+        viewportHeight = height
+        GLES30.glViewport(0, 0, width, height)
     }
 
     fun clear() {
-        GLES30.glViewport(0, 0, 1, 1)
         GLES30.glClearColor(0f, 0f, 0f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+    }
+
+    /**
+     * Creates a identity matrix for 2D rendering (orthographic projection).
+     */
+    fun createIdentityMatrix(): FloatArray {
+        return floatArrayOf(
+            1f, 0f, 0f, 0f,
+            0f, 1f, 0f, 0f,
+            0f, 0f, 1f, 0f,
+            0f, 0f, 0f, 1f
+        )
     }
 
     fun renderVideoLayer(
@@ -145,12 +176,12 @@ class GLRenderEngine {
 
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
         GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(programVideo, "uTexture"), 0)
+        GLES30.glUniform1i(uTextureVideo, 0)
 
         if (nextTextureId != -1) {
             GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
             GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, nextTextureId)
-            GLES30.glUniform1i(GLES30.glGetUniformLocation(programVideo, "uNextTexture"), 1)
+            GLES30.glUniform1i(uNextTextureVideo, 1)
         }
 
         bindVertexData()
@@ -165,7 +196,7 @@ class GLRenderEngine {
 
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, textureId)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(programOverlay, "uTexture"), 0)
+        GLES30.glUniform1i(uTextureOverlay, 0)
 
         bindVertexData()
         GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
@@ -253,6 +284,12 @@ class GLRenderEngine {
         GLES30.glAttachShader(program, vs)
         GLES30.glAttachShader(program, fs)
         GLES30.glLinkProgram(program)
+        val linkStatus = IntArray(1)
+        GLES30.glGetProgramiv(program, GLES30.GL_LINK_STATUS, linkStatus, 0)
+        if (linkStatus[0] == 0) {
+            val log = GLES30.glGetProgramInfoLog(program)
+            throw RuntimeException("Program linking failed: $log")
+        }
         return program
     }
 
@@ -260,6 +297,12 @@ class GLRenderEngine {
         val shader = GLES30.glCreateShader(type)
         GLES30.glShaderSource(shader, code)
         GLES30.glCompileShader(shader)
+        val compileStatus = IntArray(1)
+        GLES30.glGetShaderiv(shader, GLES30.GL_COMPILE_STATUS, compileStatus, 0)
+        if (compileStatus[0] == 0) {
+            val log = GLES30.glGetShaderInfoLog(shader)
+            throw RuntimeException("Shader compilation failed: $log")
+        }
         return shader
     }
 
@@ -308,11 +351,8 @@ class GLRenderEngine {
 
                 if (uUseNext == 1) {
                     vec4 b = texture(uNextTexture, vTexCoord);
-                    if (uTransitionType == 1) {
-                        color = mix(a, b, uTransitionProgress);
-                    } else {
-                        color = mix(a, b, uTransitionProgress);
-                    }
+                    // simple dissolve transition
+                    color = mix(a, b, uTransitionProgress);
                 }
 
                 color.rgb = adjustColor(color.rgb);

@@ -35,10 +35,17 @@ class _KeyframePanelState extends State<KeyframePanel> {
     return BlocBuilder<TimelineBloc, TimelineState>(
       builder: (ctx, state) {
         final clip = _getSelectedClip(state);
+        final relativeTime = state.currentTime - (clip?.startTime ?? 0);
+        
+        // Keyframes for the selected property
         final propKeyframes = clip?.keyframes
                 .where((k) => k.property == _selectedProp)
                 .toList() ??
             [];
+        
+        // The keyframe at or immediately before the current playhead
+        final activeKf = propKeyframes.reversed.firstWhereOrNull((k) => k.time <= relativeTime + 0.01);
+        
         final propInfo = _properties.firstWhere((p) => p.$1 == _selectedProp,
             orElse: () => _properties.first);
 
@@ -120,13 +127,25 @@ class _KeyframePanelState extends State<KeyframePanel> {
                       // Current value slider for the selected property at current playhead
                       _buildValueSlider(ctx, state, clip, propInfo),
                       const SizedBox(height: 16),
-                      CurveEditor(
-                        bezierHandles: const [0.42, 0.0, 0.58, 1.0],
-                        onChanged: (c) {
-                          // Update all keyframes or current segment with this curve
-                        },
-                      ),
-                      const SizedBox(height: 16),
+                      if (activeKf != null) ...[
+                        CurveEditor(
+                          bezierHandles: activeKf.easing == EasingType.bezier 
+                              ? activeKf.bezierHandles 
+                              : const [0.42, 0.0, 0.58, 1.0], // default ease
+                          onChanged: (c) {
+                            final updated = activeKf.copyWith(
+                              easing: EasingType.bezier,
+                              bezierHandles: c,
+                            );
+                            ctx.read<TimelineBloc>().add(AddKeyframe(
+                              trackId: _getTrackId(state, clip)!,
+                              clipId: clip.id,
+                              keyframe: updated,
+                            ));
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       const Divider(color: AppTheme.border),
                       const SizedBox(height: 12),
                     ],

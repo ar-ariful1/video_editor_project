@@ -15,6 +15,8 @@ class ExportPanel extends StatefulWidget {
 class _ExportPanelState extends State<ExportPanel> {
   String _resolution = '1080p';
   int _fps = 30;
+  String _bitrate = 'Recommended';
+  bool _smartHDR = false;
   bool _isExporting = false;
   double _progress = 0;
 
@@ -97,6 +99,18 @@ class _ExportPanelState extends State<ExportPanel> {
             const Text('Frame Rate', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
             const SizedBox(height: 8),
             _buildSelectionRow(['24', '30', '60'], _fps.toString(), (v) => setState(() => _fps = int.parse(v))),
+            const SizedBox(height: 20),
+            const Text('Bitrate', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            const SizedBox(height: 8),
+            _buildSelectionRow(['Lower', 'Recommended', 'Higher'], _bitrate, (v) => setState(() => _bitrate = v)),
+            const SizedBox(height: 20),
+            _buildToggleRow(
+              icon: Icons.hdr_on_rounded,
+              label: 'Smart HDR',
+              subtitle: 'Enhance dynamic range and colors',
+              value: _smartHDR,
+              onChanged: (v) => setState(() => _smartHDR = v),
+            ),
             const SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
@@ -135,6 +149,28 @@ class _ExportPanelState extends State<ExportPanel> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildToggleRow({required IconData icon, required String label, required String subtitle, required bool value, required ValueChanged<bool> onChanged}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.bg3,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Row(children: [
+        Icon(icon, color: AppTheme.textSecondary, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
+          Text(subtitle, style: const TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+        ])),
+        Switch(value: value, onChanged: onChanged),
+      ]),
     );
   }
 }

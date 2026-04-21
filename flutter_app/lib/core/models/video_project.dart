@@ -312,6 +312,7 @@ class ColorGrade extends Equatable {
   final double tint;
   final double saturation;
   final double vibrance;
+  final double blur;
   final String? lutPath;      // .cube LUT file path
   final double lutIntensity;
 
@@ -319,18 +320,20 @@ class ColorGrade extends Equatable {
     this.exposure = 0, this.brightness = 0, this.contrast = 0,
     this.highlights = 0, this.shadows = 0, this.whites = 0, this.blacks = 0,
     this.temperature = 0, this.tint = 0, this.saturation = 0, this.vibrance = 0,
+    this.blur = 0,
     this.lutPath, this.lutIntensity = 1.0,
   });
 
   static const identity = ColorGrade();
 
   bool get isIdentity => exposure == 0 && brightness == 0 && contrast == 0 &&
-      highlights == 0 && shadows == 0 && saturation == 0 && lutPath == null;
+      highlights == 0 && shadows == 0 && saturation == 0 && blur == 0 && lutPath == null;
 
   ColorGrade copyWith({
     double? exposure, double? brightness, double? contrast,
     double? highlights, double? shadows, double? whites, double? blacks,
     double? temperature, double? tint, double? saturation, double? vibrance,
+    double? blur,
     String? lutPath, double? lutIntensity,
   }) => ColorGrade(
     exposure: exposure ?? this.exposure, brightness: brightness ?? this.brightness,
@@ -338,7 +341,8 @@ class ColorGrade extends Equatable {
     shadows: shadows ?? this.shadows, whites: whites ?? this.whites,
     blacks: blacks ?? this.blacks, temperature: temperature ?? this.temperature,
     tint: tint ?? this.tint, saturation: saturation ?? this.saturation,
-    vibrance: vibrance ?? this.vibrance, lutPath: lutPath ?? this.lutPath,
+    vibrance: vibrance ?? this.vibrance, blur: blur ?? this.blur,
+    lutPath: lutPath ?? this.lutPath,
     lutIntensity: lutIntensity ?? this.lutIntensity,
   );
 
@@ -346,6 +350,7 @@ class ColorGrade extends Equatable {
     'exposure': exposure, 'brightness': brightness, 'contrast': contrast,
     'highlights': highlights, 'shadows': shadows, 'whites': whites, 'blacks': blacks,
     'temperature': temperature, 'tint': tint, 'saturation': saturation, 'vibrance': vibrance,
+    'blur': blur,
     'lutPath': lutPath, 'lutIntensity': lutIntensity,
   };
 
@@ -355,6 +360,7 @@ class ColorGrade extends Equatable {
     shadows: j['shadows'] ?? 0, whites: j['whites'] ?? 0, blacks: j['blacks'] ?? 0,
     temperature: j['temperature'] ?? 0, tint: j['tint'] ?? 0,
     saturation: j['saturation'] ?? 0, vibrance: j['vibrance'] ?? 0,
+    blur: j['blur'] ?? 0,
     lutPath: j['lutPath'], lutIntensity: j['lutIntensity'] ?? 1.0,
   );
 
@@ -499,6 +505,8 @@ class Clip extends Equatable {
   final ParticleEffect? particleEffect;  // Fire, snow, rain
   final List<AutoCaption>? autoCaptions;
   final List<SpeedPoint>? speedCurve;
+  final bool stabilization;
+  final bool aiReframe;
 
   const Clip({
     required this.id,
@@ -536,6 +544,8 @@ class Clip extends Equatable {
     this.particleEffect,
     this.autoCaptions,
     this.speedCurve,
+    this.stabilization = false,
+    this.aiReframe = false,
   });
 
   factory Clip.create({
@@ -608,6 +618,8 @@ class Clip extends Equatable {
     ParticleEffect? particleEffect,
     List<AutoCaption>? autoCaptions,
     List<SpeedPoint>? speedCurve,
+    bool? stabilization,
+    bool? aiReframe,
   }) => Clip(
     id: id ?? this.id,
     startTime: startTime ?? this.startTime, endTime: endTime ?? this.endTime,
@@ -633,6 +645,8 @@ class Clip extends Equatable {
     particleEffect: particleEffect ?? this.particleEffect,
     autoCaptions: autoCaptions ?? this.autoCaptions,
     speedCurve: speedCurve ?? this.speedCurve,
+    stabilization: stabilization ?? this.stabilization,
+    aiReframe: aiReframe ?? this.aiReframe,
   );
 
   Map<String, dynamic> toJson() => {
@@ -658,6 +672,8 @@ class Clip extends Equatable {
     'particleEffect': particleEffect?.toJson(),
     'autoCaptions': autoCaptions?.map((c) => c.toJson()).toList(),
     'speedCurve': speedCurve?.map((p) => p.toJson()).toList(),
+    'stabilization': stabilization,
+    'aiReframe': aiReframe,
   };
 
   factory Clip.fromJson(Map<String, dynamic> j) => Clip(
@@ -694,6 +710,8 @@ class Clip extends Equatable {
     speedCurve: j['speedCurve'] != null
         ? (j['speedCurve'] as List).map((p) => SpeedPoint.fromJson(p)).toList()
         : null,
+    stabilization: j['stabilization'] ?? false,
+    aiReframe: j['aiReframe'] ?? false,
   );
 
   static Clip fromJsonPolymorphic(Map<String, dynamic> j) {
@@ -1016,6 +1034,7 @@ class Track extends Equatable {
   final bool isMuted;
   final bool isCollapsed;
   final List<Clip> clips;
+  final double volume;
 
   const Track({
     required this.id,
@@ -1027,6 +1046,7 @@ class Track extends Equatable {
     this.isMuted = false,
     this.isCollapsed = false,
     this.clips = const [],
+    this.volume = 1.0,
   });
 
   factory Track.create({required String name, required TrackType type, required int zIndex}) =>
@@ -1043,17 +1063,20 @@ class Track extends Equatable {
     String? id,
     String? name, TrackType? type, int? zIndex, bool? isLocked,
     bool? isSolo, bool? isMuted, bool? isCollapsed, List<Clip>? clips,
+    double? volume,
   }) => Track(
     id: id ?? this.id, name: name ?? this.name, type: type ?? this.type, zIndex: zIndex ?? this.zIndex,
     isLocked: isLocked ?? this.isLocked, isSolo: isSolo ?? this.isSolo,
     isMuted: isMuted ?? this.isMuted, isCollapsed: isCollapsed ?? this.isCollapsed,
     clips: clips ?? this.clips,
+    volume: volume ?? this.volume,
   );
 
   Map<String, dynamic> toJson() => {
     'id': id, 'name': name, 'type': type.name, 'zIndex': zIndex,
     'isLocked': isLocked, 'isSolo': isSolo, 'isMuted': isMuted, 'isCollapsed': isCollapsed,
     'clips': clips.map((c) => c.toJson()).toList(),
+    'volume': volume,
   };
 
   factory Track.fromJson(Map<String, dynamic> j) => Track(
@@ -1063,10 +1086,11 @@ class Track extends Equatable {
     clips: (j['clips'] as List? ?? [])
         .map((c) => Clip.fromJsonPolymorphic(c))
         .toList(),
+    volume: j['volume'] ?? 1.0,
   );
 
   @override
-  List<Object?> get props => [id, name, type, zIndex, clips];
+  List<Object?> get props => [id, name, type, zIndex, clips, volume];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

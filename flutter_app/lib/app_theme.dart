@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AppTheme {
-  static const Color bg = Color(0xFF0F0F13);
+  static const Color bg = Color(0xFF000000);
   static const Color bg2 = Color(0xFF16161D);
   static const Color bg3 = Color(0xFF1E1E28);
   static const Color border = Color(0xFF2A2A38);

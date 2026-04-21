@@ -247,7 +247,18 @@ class AddTransition extends TimelineEvent {
 class SelectClip extends TimelineEvent {
   final String? trackId;
   final String? clipId;
-  const SelectClip({this.trackId, this.clipId});
+  final bool multiSelect;
+  const SelectClip({this.trackId, this.clipId, this.multiSelect = false});
+  @override
+  List<Object?> get props => [trackId, clipId, multiSelect];
+}
+
+class DeselectAll extends TimelineEvent {
+  const DeselectAll();
+}
+
+class RemoveSelectedClips extends TimelineEvent {
+  const RemoveSelectedClips();
 }
 
 class AddOverlay extends TimelineEvent {
@@ -371,6 +382,8 @@ class TimelineState extends Equatable {
   final double zoom;
   final String? selectedTrackId;
   final String? selectedClipId;
+  final Set<String> selectedClipIds;
+  final bool isMultiSelectMode;
   final String? errorMessage;
   final bool canUndo;
   final bool canRedo;
@@ -386,6 +399,8 @@ class TimelineState extends Equatable {
     this.zoom = 100.0,
     this.selectedTrackId,
     this.selectedClipId,
+    this.selectedClipIds = const {},
+    this.isMultiSelectMode = false,
     this.errorMessage,
     this.canUndo = false,
     this.canRedo = false,
@@ -402,6 +417,8 @@ class TimelineState extends Equatable {
     double? zoom,
     String? selectedTrackId,
     String? selectedClipId,
+    Set<String>? selectedClipIds,
+    bool? isMultiSelectMode,
     String? errorMessage,
     bool? canUndo,
     bool? canRedo,
@@ -417,6 +434,8 @@ class TimelineState extends Equatable {
         zoom: zoom ?? this.zoom,
         selectedTrackId: selectedTrackId ?? this.selectedTrackId,
         selectedClipId: selectedClipId ?? this.selectedClipId,
+        selectedClipIds: selectedClipIds ?? this.selectedClipIds,
+        isMultiSelectMode: isMultiSelectMode ?? this.isMultiSelectMode,
         errorMessage: errorMessage ?? this.errorMessage,
         canUndo: canUndo ?? this.canUndo,
         canRedo: canRedo ?? this.canRedo,
@@ -432,6 +451,8 @@ class TimelineState extends Equatable {
         isPlaying,
         zoom,
         selectedClipId,
+        selectedClipIds,
+        isMultiSelectMode,
         canUndo,
         canRedo
       ];
@@ -475,6 +496,9 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
     on<UpdateClip>(_onUpdateClip);
     on<AddTransition>(_onAddTransition);
     on<SelectClip>(_onSelectClip);
+    on<DeselectAll>(_onDeselectAll);
+    on<SelectAllClips>(_onSelectAllClips);
+    on<RemoveSelectedClips>(_onRemoveSelectedClips);
     on<AddKeyframe>(_onAddKeyframe);
     on<AddKeyframes>(_onAddKeyframes);
     on<RemoveKeyframe>(_onRemoveKeyframe);
@@ -760,6 +784,28 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
     });
     emit(newState.copyWith(
       selectedClipId: newState.selectedClipId == event.clipId ? null : newState.selectedClipId,
+      selectedClipIds: Set<String>.from(newState.selectedClipIds)..remove(event.clipId),
+    ));
+  }
+
+  void _onRemoveSelectedClips(RemoveSelectedClips event, Emitter<TimelineState> emit) {
+    if (state.project == null || state.selectedClipIds.isEmpty) return;
+
+    final newState = _withUndoableMutation(state, (project) {
+      var updatedProject = project;
+      for (final track in project.tracks) {
+        final remainingClips = track.clips.where((c) => !state.selectedClipIds.contains(c.id)).toList();
+        if (remainingClips.length != track.clips.length) {
+          updatedProject = _updateTrackInProject(updatedProject, track.copyWith(clips: remainingClips));
+        }
+      }
+      return updatedProject;
+    });
+
+    emit(newState.copyWith(
+      selectedClipId: null,
+      selectedClipIds: {},
+      isMultiSelectMode: false,
     ));
   }
 
@@ -1086,7 +1132,13 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final clips = track.clips
           .map((c) => c.id == event.clip.id ? event.clip : c)
           .toList();
-      return _updateTrackInProject(project, track.copyWith(clips: clips));
+      final updatedProject = _updateTrackInProject(project, track.copyWith(clips: clips));
+      
+      // SYNC WITH NATIVE ENGINE
+      // Whenever a clip is updated, we notify the engine of the new properties
+      NativeEngineService().renderFrame(state.currentTime); 
+      
+      return updatedProject;
     });
     emit(newState);
   }
@@ -1107,8 +1159,52 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
   }
 
   void _onSelectClip(SelectClip event, Emitter<TimelineState> emit) {
+    if (event.multiSelect) {
+      final newSelectedIds = Set<String>.from(state.selectedClipIds);
+      if (event.clipId != null) {
+        if (newSelectedIds.contains(event.clipId)) {
+          newSelectedIds.remove(event.clipId);
+        } else {
+          newSelectedIds.add(event.clipId!);
+        }
+      }
+      
+      emit(state.copyWith(
+        selectedClipIds: newSelectedIds,
+        isMultiSelectMode: newSelectedIds.isNotEmpty,
+        // If we only have one item, also set it as primary selected clip for property panels
+        selectedClipId: newSelectedIds.length == 1 ? newSelectedIds.first : null,
+      ));
+    } else {
+      emit(state.copyWith(
+        selectedTrackId: event.trackId,
+        selectedClipId: event.clipId,
+        selectedClipIds: event.clipId != null ? {event.clipId!} : {},
+        isMultiSelectMode: false,
+      ));
+    }
+  }
+
+  void _onDeselectAll(DeselectAll event, Emitter<TimelineState> emit) {
     emit(state.copyWith(
-        selectedTrackId: event.trackId, selectedClipId: event.clipId));
+      selectedClipId: null,
+      selectedTrackId: null,
+      selectedClipIds: {},
+      isMultiSelectMode: false,
+    ));
+  }
+
+  void _onSelectAllClips(SelectAllClips event, Emitter<TimelineState> emit) {
+    if (state.project == null) return;
+    final allIds = state.project!.tracks
+        .expand((t) => t.clips)
+        .map((c) => c.id)
+        .toSet();
+    emit(state.copyWith(
+      selectedClipIds: allIds,
+      isMultiSelectMode: allIds.isNotEmpty,
+      selectedClipId: allIds.length == 1 ? allIds.first : null,
+    ));
   }
 
   void _onAddKeyframe(AddKeyframe event, Emitter<TimelineState> emit) {

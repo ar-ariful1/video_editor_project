@@ -374,6 +374,109 @@ class AIService {
     return File(outPath);
   }
 
+  // ── Lip Sync (Sadtalker / Wav2Lip) ────────────────────────────────────
+
+  Future<File> lipSync(String videoPath, String audioPath, {void Function(double)? onProgress}) async {
+    final videoFile = await MultipartFile.fromFile(videoPath);
+    final audioFile = await MultipartFile.fromFile(audioPath);
+    final formData = FormData.fromMap({
+      'video': videoFile,
+      'audio': audioFile,
+    });
+    
+    onProgress?.call(0.1);
+    final res = await _dio.post<List<int>>(
+      '/ai/lip-sync',
+      data: formData,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    onProgress?.call(1.0);
+    
+    final outPath = videoPath.replaceAll(RegExp(r'\.\w+$'), '_lipsync.mp4');
+    await File(outPath).writeAsBytes(res.data!);
+    return File(outPath);
+  }
+
+  // ── Mimic Motion (MagicAnimate / Moore-AnimateAnyone) ──────────────────
+
+  Future<File> mimicMotion(String sourceImagePath, String drivingVideoPath, {void Function(double)? onProgress}) async {
+    final sourceFile = await MultipartFile.fromFile(sourceImagePath);
+    final drivingFile = await MultipartFile.fromFile(drivingVideoPath);
+    final formData = FormData.fromMap({
+      'source_image': sourceFile,
+      'driving_video': drivingFile,
+    });
+
+    onProgress?.call(0.1);
+    final res = await _dio.post<List<int>>(
+      '/ai/mimic-motion',
+      data: formData,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    onProgress?.call(1.0);
+
+    final outPath = sourceImagePath.replaceAll(RegExp(r'\.\w+$'), '_mimic.mp4');
+    await File(outPath).writeAsBytes(res.data!);
+    return File(outPath);
+  }
+
+  // ── Eye Contact (LivePortrait / MediaPipe) ──────────────────────────
+
+  Future<File> eyeContact(String videoPath, {void Function(double)? onProgress}) async {
+    final file = await MultipartFile.fromFile(videoPath);
+    final formData = FormData.fromMap({'file': file});
+
+    onProgress?.call(0.1);
+    final res = await _dio.post<List<int>>(
+      '/ai/eye-contact',
+      data: formData,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    onProgress?.call(1.0);
+
+    final outPath = videoPath.replaceAll(RegExp(r'\.\w+$'), '_eye_contact.mp4');
+    await File(outPath).writeAsBytes(res.data!);
+    return File(outPath);
+  }
+
+  // ── AI Relight (IC-Light / ControlNet) ─────────────────────────────────
+
+  Future<File> relight(String imagePath, String prompt, {void Function(double)? onProgress}) async {
+    final file = await MultipartFile.fromFile(imagePath);
+    final formData = FormData.fromMap({
+      'file': file,
+      'prompt': prompt,
+    });
+
+    onProgress?.call(0.1);
+    final res = await _dio.post<List<int>>(
+      '/ai/relight',
+      data: formData,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    onProgress?.call(1.0);
+
+    final outPath = imagePath.replaceAll(RegExp(r'\.\w+$'), '_relight.png');
+    await File(outPath).writeAsBytes(res.data!);
+    return File(outPath);
+  }
+
+  // ── Text to Image (Stable Diffusion XL) ──────────────────────────────
+
+  Future<File> textToImage(String prompt, {String ratio = '16:9'}) async {
+    final res = await _dio.post<List<int>>(
+      '/ai/text-to-image',
+      data: {'prompt': prompt, 'ratio': ratio},
+      options: Options(responseType: ResponseType.bytes),
+    );
+    
+    final fileName = 'ai_gen_${DateTime.now().millisecondsSinceEpoch}.png';
+    final dir = Directory.systemTemp;
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(res.data!);
+    return file;
+  }
+
   // ── Poll Helper ─────────────────────────────────────────────────────────
 
   Future<T> _pollJob<T>({

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/bloc/timeline_bloc.dart';
@@ -48,11 +49,33 @@ class _ColorPanelState extends State<ColorPanel> {
             (v) => _update(_grade.copyWith(vibrance: v))),
 
         const SizedBox(height: 14),
-        const Text('LUT',
-            style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('LUT',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            TextButton.icon(
+              onPressed: () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['cube'],
+                );
+                if (result != null && result.files.single.path != null) {
+                  _update(_grade.copyWith(
+                    lutPath: result.files.single.path,
+                    lutIntensity: 1.0,
+                  ));
+                }
+              },
+              icon: const Icon(Icons.file_upload_outlined, size: 14),
+              label: const Text('Import LUT', style: TextStyle(fontSize: 10)),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 36,
@@ -92,6 +115,9 @@ class _ColorPanelState extends State<ColorPanel> {
         ),
         const SizedBox(height: 14),
         // Reset
+        _Slider(Icons.blur_on_rounded, 'Background Blur', _grade.blur, 0, 100,
+            (v) => _update(_grade.copyWith(blur: v))),
+        const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton(

@@ -19,7 +19,7 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -32,6 +32,7 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
             Tab(text: 'Adjust'),
             Tab(text: 'Wheels'),
             Tab(text: 'Curves'),
+            Tab(text: 'LUT'),
           ],
         ),
         Expanded(
@@ -41,6 +42,7 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
               _buildBasicAdjustments(),
               _buildColorWheels(),
               _buildColorCurves(),
+              _buildLUTPanel(),
             ],
           ),
         ),
@@ -162,6 +164,48 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
           ),
         ),
       ),
+    );
+  Widget _buildLUTPanel() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ElevatedButton.icon(
+          onPressed: () {
+            // Pick .cube file logic
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Picking .cube LUT file...')),
+            );
+          },
+          icon: const Icon(Icons.file_open_rounded),
+          label: const Text('Import .cube LUT'),
+        ),
+        const SizedBox(height: 20),
+        const Text('Standard LUTs', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: 6,
+          itemBuilder: (context, index) {
+            final luts = ['Natural', 'Vivid', 'Cinematic', 'B&W', 'Vintage', 'Cool'];
+            return Container(
+              decoration: BoxDecoration(
+                color: AppTheme.bg3,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Center(
+                child: Text(luts[index], style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

@@ -102,6 +102,12 @@ class _AppRouter extends StatelessWidget {
           await MonitoringService().init(userId: state.userId);
           await ABTestService().init(state.userId);
           ctx.read<SubscriptionBloc>().add(const LoadSubscription());
+          
+          // Mark onboarding and first-time login as done
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('onboarding_done', true);
+          await prefs.setBool('is_first_run', false);
+
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             await RemoteConfigService().fetch();
             if (ctx.mounted) {
@@ -115,19 +121,25 @@ class _AppRouter extends StatelessWidget {
           return const SplashScreen();
         }
 
-        return FutureBuilder<bool>(
-          future: SharedPreferences.getInstance()
-              .then((prefs) => prefs.getBool('onboarding_done') ?? false),
+        return FutureBuilder<Map<String, bool>>(
+          future: SharedPreferences.getInstance().then((prefs) => {
+                'onboarding_done': prefs.getBool('onboarding_done') ?? false,
+                'is_first_run': prefs.getBool('is_first_run') ?? true,
+              }),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const SplashScreen();
             }
 
-            if (snapshot.data == true) {
-              // যদি অথেন্টিকেটেড না হয়, তবে লগইন স্ক্রিনে পাঠাবো (সেখান থেকে স্কিপ করা যাবে)
-              if (state is AuthUnauthenticated) {
-                return const LoginScreen();
-              }
+            final onboardingDone = snapshot.data!['onboarding_done'] ?? false;
+            final isFirstRun = snapshot.data!['is_first_run'] ?? true;
+
+            // যদি প্রথমবার রান হয় অথবা লগইন করা না থাকে
+            if (isFirstRun || state is AuthUnauthenticated) {
+              return const LoginScreen();
+            }
+
+            if (onboardingDone) {
               return const MainNavScreen();
             } else {
               return const OnboardingScreen();

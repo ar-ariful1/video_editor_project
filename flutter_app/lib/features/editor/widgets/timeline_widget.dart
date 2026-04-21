@@ -16,6 +16,8 @@ class TimelineWidget extends StatefulWidget {
   final double currentTime;
   final double zoom; // pixels per second
   final String? selectedClipId;
+  final Set<String> selectedClipIds;
+  final bool isMultiSelectMode;
 
   const TimelineWidget({
     super.key,
@@ -23,6 +25,8 @@ class TimelineWidget extends StatefulWidget {
     required this.currentTime,
     required this.zoom,
     this.selectedClipId,
+    this.selectedClipIds = const {},
+    this.isMultiSelectMode = false,
   });
 
   @override
@@ -104,7 +108,28 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               const VerticalDivider(width: 20, indent: 8, endIndent: 8),
               _ToolbarBtn(icon: Icons.auto_fix_high_rounded, label: 'Magnetic', active: true, onTap: () {}),
               const VerticalDivider(width: 20, indent: 8, endIndent: 8),
-              _ToolbarBtn(icon: Icons.select_all_rounded, label: 'Multi', onTap: () {}),
+              _ToolbarBtn(
+                icon: Icons.select_all_rounded, 
+                label: 'Multi', 
+                active: widget.isMultiSelectMode,
+                onTap: () {
+                  if (widget.isMultiSelectMode) {
+                    context.read<TimelineBloc>().add(const DeselectAll());
+                  } else {
+                    // Start multi-select by letting user click next items
+                    // We don't have a dedicated "toggle" event, we'll just handle it via the state
+                    // In a real app, maybe you'd emit a state that says "MultiSelectPending"
+                  }
+                }
+              ),
+              if (widget.isMultiSelectMode) ...[
+                const VerticalDivider(width: 20, indent: 8, endIndent: 8),
+                _ToolbarBtn(
+                  icon: Icons.delete_outline, 
+                  label: 'Delete (${widget.selectedClipIds.length})', 
+                  onTap: () => context.read<TimelineBloc>().add(const RemoveSelectedClips()),
+                ),
+              ],
               const Spacer(),
               Text(_formatTime(widget.currentTime),
                   style: const TextStyle(color: AppTheme.accent, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
@@ -185,6 +210,8 @@ onPointerSignal: (event) {
                                           zoom: widget.zoom,
                                           currentTime: widget.currentTime,
                                           selectedClipId: widget.selectedClipId,
+                                          selectedClipIds: widget.selectedClipIds,
+                                          isMultiSelectMode: widget.isMultiSelectMode,
                                           height: _trackHeight,
                                           totalWidth: totalWidth,
                                         ))
@@ -582,6 +609,8 @@ class _TrackRow extends StatelessWidget {
   final double zoom;
   final double currentTime;
   final String? selectedClipId;
+  final Set<String> selectedClipIds;
+  final bool isMultiSelectMode;
   final double height;
   final double totalWidth;
 
@@ -590,6 +619,8 @@ class _TrackRow extends StatelessWidget {
     required this.zoom,
     required this.currentTime,
     required this.selectedClipId,
+    required this.selectedClipIds,
+    required this.isMultiSelectMode,
     required this.height,
     required this.totalWidth,
   });
@@ -606,7 +637,7 @@ class _TrackRow extends StatelessWidget {
         // Drop zone
         GestureDetector(
           onTapDown: (d) =>
-              context.read<TimelineBloc>().add(const SelectClip()),
+              context.read<TimelineBloc>().add(const DeselectAll()),
         ),
         // Clips
         ...track.clips.map((clip) => _ClipWidget(
@@ -614,7 +645,8 @@ class _TrackRow extends StatelessWidget {
               track: track,
               zoom: zoom,
               height: height,
-              isSelected: clip.id == selectedClipId,
+              isSelected: selectedClipIds.contains(clip.id),
+              isMultiSelectMode: isMultiSelectMode,
             )),
         // Gap Handles (Transitions)
         ..._buildGapHandles(context),
@@ -679,13 +711,16 @@ class _ClipWidget extends StatefulWidget {
   final double zoom;
   final double height;
   final bool isSelected;
+  final bool isMultiSelectMode;
 
-  const _ClipWidget(
-      {required this.clip,
-      required this.track,
-      required this.zoom,
-      required this.height,
-      required this.isSelected});
+  const _ClipWidget({
+    required this.clip,
+    required this.track,
+    required this.zoom,
+    required this.height,
+    required this.isSelected,
+    required this.isMultiSelectMode,
+  });
 
   @override
   State<_ClipWidget> createState() => _ClipWidgetState();
@@ -709,8 +744,22 @@ class _ClipWidgetState extends State<_ClipWidget> {
       child: GestureDetector(
         onTap: () => context
             .read<TimelineBloc>()
-            .add(SelectClip(trackId: widget.track.id, clipId: clip.id)),
-        onLongPress: () => _showClipMenu(context),
+            .add(SelectClip(
+              trackId: widget.track.id, 
+              clipId: clip.id,
+              multiSelect: widget.isMultiSelectMode,
+            )),
+        onLongPress: () {
+          // Enter multi-select mode if not already in it
+          if (!widget.isMultiSelectMode) {
+            context.read<TimelineBloc>().add(SelectClip(
+              trackId: widget.track.id,
+              clipId: clip.id,
+              multiSelect: true,
+            ));
+          }
+          _showClipMenu(context);
+        },
         onHorizontalDragStart: (d) {
           _dragStartX = d.globalPosition.dx;
           _dragStartTime = clip.startTime;
@@ -879,6 +928,19 @@ extension _ClipWidgetStateMenu on _ClipWidgetState {
         }),
         _menuItem(Icons.content_cut_rounded, 'Split', () {
           bloc.add(SplitClip(trackId: widget.track.id, clipId: widget.clip.id));
+          Navigator.pop(context);
+        }),
+        _menuItem(Icons.ac_unit_rounded, 'Freeze Frame', () {
+          final currentTime = bloc.state.currentTime;
+          bloc.add(FreezeFrame(
+            trackId: widget.track.id,
+            clipId: widget.clip.id,
+            time: currentTime,
+          ));
+          Navigator.pop(context);
+        }),
+        _menuItem(Icons.settings_backup_restore_rounded, widget.clip.isReversed ? 'Remove Reverse' : 'Reverse', () {
+          bloc.add(ReverseClip(trackId: widget.track.id, clipId: widget.clip.id));
           Navigator.pop(context);
         }),
         _menuItem(Icons.copy_rounded, 'Duplicate', () {

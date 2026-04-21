@@ -143,6 +143,8 @@ class _EditorScreenState extends State<EditorScreen> {
                   currentTime: state.currentTime,
                   zoom: state.zoom,
                   selectedClipId: state.selectedClipId,
+                  selectedClipIds: state.selectedClipIds,
+                  isMultiSelectMode: state.isMultiSelectMode,
                 ),
               ),
               if (_isPanelOpen) _buildSidePanel(),

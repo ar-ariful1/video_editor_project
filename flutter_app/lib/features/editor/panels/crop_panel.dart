@@ -270,18 +270,33 @@ void _applyCrop() {
       );
       return;
     }
-    // Apply transform with rotation
+
+    // Find the clip and its track
     for (final track in state.project?.tracks ?? []) {
-      for (final clip in track.clips) {
-        if (clip.id == state.selectedClipId) {
-          final updated = clip.copyWith(
-            transform: clip.transform.copyWith(rotation: _rotation),
-          );
-          context
-              .read<TimelineBloc>()
-              .add(UpdateClip(trackId: track.id, clip: updated));
-          return;
-        }
+      final clip = track.clips.firstWhereOrNull((c) => c.id == state.selectedClipId);
+      if (clip != null) {
+        // Build the updated transform object
+        final updatedTransform = clip.transform.copyWith(
+          rotation: _rotation,
+          scaleX: _zoom * (_flipH ? -1.0 : 1.0),
+          scaleY: _zoom * (_flipV ? -1.0 : 1.0),
+        );
+
+        // Update the clip in the BLoC
+        context.read<TimelineBloc>().add(UpdateClip(
+          trackId: track.id,
+          clip: clip.copyWith(
+            transform: updatedTransform,
+          ),
+        ));
+
+        // Note: The BLoC now handles notifying the Native Engine 
+        // through its updated _onUpdateClip handler.
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transform applied successfully')),
+        );
+        return;
       }
     }
   }

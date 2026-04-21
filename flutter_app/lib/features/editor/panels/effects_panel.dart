@@ -4,6 +4,7 @@ import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart' as model;
 import '../../../core/models/video_project.dart' show Effect;
 import '../../../app_theme.dart';
+import 'particle_panel.dart';
 
 class EffectsPanel extends StatefulWidget {
   const EffectsPanel({super.key});
@@ -62,8 +63,8 @@ class _EffectsPanelState extends State<EffectsPanel>
         controller: _tabs,
         tabs: const [
           Tab(text: 'Effects'),
+          Tab(text: 'Particles'),
           Tab(text: 'Transitions'),
-          Tab(text: 'Body'),
           Tab(text: 'LUTs')
         ],
         labelColor: AppTheme.accent,
@@ -73,8 +74,8 @@ class _EffectsPanelState extends State<EffectsPanel>
       Expanded(
         child: TabBarView(controller: _tabs, children: [
           _buildEffectGrid(context),
+          const ParticlePanel(),
           _buildTransitionGrid(context),
-          _buildBodyEffectGrid(context),
           _buildLUTGrid(context),
         ]),
       ),

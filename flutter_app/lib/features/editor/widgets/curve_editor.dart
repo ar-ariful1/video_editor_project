@@ -27,6 +27,22 @@ class _CurveEditorState extends State<CurveEditor> {
     cp2 = Offset(widget.bezierHandles[2], widget.bezierHandles[3]);
   }
 
+  @override
+  void didUpdateWidget(CurveEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only update internal state if handles changed externally and we're not middle of a gesture
+    // For simplicity, we just check if they are different.
+    if (widget.bezierHandles[0] != cp1.dx ||
+        widget.bezierHandles[1] != cp1.dy ||
+        widget.bezierHandles[2] != cp2.dx ||
+        widget.bezierHandles[3] != cp2.dy) {
+      setState(() {
+        cp1 = Offset(widget.bezierHandles[0], widget.bezierHandles[1]);
+        cp2 = Offset(widget.bezierHandles[2], widget.bezierHandles[3]);
+      });
+    }
+  }
+
   void _updatePoint(int index, Offset delta, Size size) {
     setState(() {
       if (index == 1) {
