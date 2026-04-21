@@ -74,6 +74,19 @@ class MainActivity : FlutterActivity() {
                 }
             })
 
+          "setVolume" -> {
+    val clipId = call.argument<String>("clipId") ?: ""
+    val volume = (call.argument<Double>("volume") ?: 1.0).toFloat()
+    // আপনার AudioMixer বা অন্য কোথাও ভলিউম সেট করুন
+    audioMixer?.setVolume(clipId, volume)
+    result.success(null)
+}
+
+  "getAudioWaveform" -> {
+    val path = call.argument<String>("path") ?: ""
+    val waveform = generateWaveform(path) 
+    result.success(waveform)
+ }
         // ------------- Main Engine Method Channel -------------
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ENGINE_CHANNEL)
             .setMethodCallHandler { call, result ->

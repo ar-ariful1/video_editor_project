@@ -1,3 +1,4 @@
+// android/app/src/main/kotlin/com/clipcut/app/AudioClipDecoder.kt
 package com.clipcut.app
 
 import android.media.MediaCodec
@@ -8,16 +9,25 @@ import java.io.ByteArrayOutputStream
 
 class AudioClipDecoder(private val path: String) {
 
+    companion object {
+        private const val TAG = "AudioClipDecoder"
+        private const val TIMEOUT_US = 10000L
+    }
+
     private var extractor: MediaExtractor? = null
     private var decoder: MediaCodec? = null
     private var isEOS = false
     private val bufferInfo = MediaCodec.BufferInfo()
 
     private val pending = ByteArrayOutputStream()
+    private var audioSampleRate = 44100
+    private var audioChannels = 2
 
+    @Throws(RuntimeException::class)
     fun setup() {
-        extractor = MediaExtractor()
-        extractor?.setDataSource(path)
+        extractor = MediaExtractor().apply {
+            setDataSource(path)
+        }
 
         val trackIndex = selectAudioTrack(extractor!!)
         if (trackIndex < 0) {
@@ -25,7 +35,10 @@ class AudioClipDecoder(private val path: String) {
         }
 
         val format = extractor!!.getTrackFormat(trackIndex)
-        val mime = format.getString(MediaFormat.KEY_MIME) ?: throw RuntimeException("Missing audio mime")
+        audioSampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        audioChannels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+        val mime = format.getString(MediaFormat.KEY_MIME)
+            ?: throw RuntimeException("Missing audio mime")
 
         decoder = MediaCodec.createDecoderByType(mime).apply {
             configure(format, null, null, 0)
@@ -45,6 +58,13 @@ class AudioClipDecoder(private val path: String) {
         return -1
     }
 
+    fun getSampleRate(): Int = audioSampleRate
+    fun getChannelCount(): Int = audioChannels
+
+    /**
+     * Decode and return the requested amount of PCM bytes.
+     * If EOF is reached, the returned array will be filled with zeros for the remaining space.
+     */
     fun decodeNextPCM(requestedSize: Int): ByteArray {
         val codec = decoder ?: return ByteArray(requestedSize)
         val ex = extractor ?: return ByteArray(requestedSize)
@@ -52,7 +72,7 @@ class AudioClipDecoder(private val path: String) {
         val output = ByteArray(requestedSize)
         var copied = 0
 
-        // Consume pending bytes first.
+        // First, consume pending bytes from previous decode
         if (pending.size() > 0) {
             val pendingBytes = pending.toByteArray()
             val toCopy = minOf(requestedSize, pendingBytes.size)
@@ -65,13 +85,15 @@ class AudioClipDecoder(private val path: String) {
             }
         }
 
+        // Keep decoding until we have enough data or EOS
         while (copied < requestedSize && !isEOS) {
-            val inIndex = codec.dequeueInputBuffer(10_000)
+            // Feed input buffer if we can
+            val inIndex = codec.dequeueInputBuffer(TIMEOUT_US)
             if (inIndex >= 0) {
                 val inputBuffer = codec.getInputBuffer(inIndex)
-                val size = inputBuffer?.let { ex.readSampleData(it, 0) } ?: -1
+                val sampleSize = inputBuffer?.let { ex.readSampleData(it, 0) } ?: -1
 
-                if (size < 0) {
+                if (sampleSize < 0) {
                     codec.queueInputBuffer(
                         inIndex,
                         0,
@@ -81,12 +103,19 @@ class AudioClipDecoder(private val path: String) {
                     )
                     isEOS = true
                 } else {
-                    codec.queueInputBuffer(inIndex, 0, size, ex.sampleTime, 0)
+                    codec.queueInputBuffer(
+                        inIndex,
+                        0,
+                        sampleSize,
+                        ex.sampleTime,
+                        0
+                    )
                     ex.advance()
                 }
             }
 
-            val outIndex = codec.dequeueOutputBuffer(bufferInfo, 10_000)
+            // Get decoded output
+            val outIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
             when {
                 outIndex >= 0 -> {
                     val outputBuffer = codec.getOutputBuffer(outIndex)
@@ -102,7 +131,7 @@ class AudioClipDecoder(private val path: String) {
                             copied += chunk.size
                         } else {
                             System.arraycopy(chunk, 0, output, copied, remainingNeeded)
-                            copied = requestedSize
+                            copied += remainingNeeded
                             pending.write(chunk, remainingNeeded, chunk.size - remainingNeeded)
                         }
                     }
@@ -115,11 +144,17 @@ class AudioClipDecoder(private val path: String) {
                 }
 
                 outIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                    // No output ready yet, loop again
                     if (isEOS) break
+                }
+
+                outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    // Format changed, but we don't need to handle for PCM output
                 }
             }
         }
 
+        // If we didn't get enough data (EOS reached), the remainder stays zero
         return output
     }
 
@@ -131,15 +166,9 @@ class AudioClipDecoder(private val path: String) {
     }
 
     fun release() {
-        try {
-            decoder?.stop()
-        } catch (_: Exception) {}
-        try {
-            decoder?.release()
-        } catch (_: Exception) {}
-        try {
-            extractor?.release()
-        } catch (_: Exception) {}
+        runCatching { decoder?.stop() }
+        runCatching { decoder?.release() }
+        runCatching { extractor?.release() }
 
         decoder = null
         extractor = null

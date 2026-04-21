@@ -26,7 +26,7 @@ import 'panels/crop_panel.dart';
 import 'panels/transitions_panel.dart';
 import 'panels/color_grading_panel.dart';
 import 'widgets/toolbar.dart';
-
+import '../../core/engine/native_engine_bridge.dart';
 import 'package:collection/collection.dart';
 
 enum EditorPanel {
@@ -66,15 +66,49 @@ class _EditorScreenState extends State<EditorScreen> {
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _initEngine();
     if (widget.projectId != null) {
       context.read<TimelineBloc>().add(LoadProjectById(widget.projectId!));
     }
   }
+   
+  Future<void> _initEngine() async {
+    _engine = NativeEngineBridge();
+    await _engine.initialize();
+    _previewTextureId = await _engine.createVideoTexture();
+    setState(() => _engineReady = true);
+  }
+
 
   @override
   void dispose() {
+    _engine.release();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+  
+  Future<void> _loadClipToEngine(Clip clip) async {
+    if (clip.mediaType == 'video') {
+      final metadata = await _engine.loadVideo(clip.mediaPath);
+      // মেটাডেটা সংরক্ষণ করতে পারেন
+    }
+  }
+  
+  void _togglePlayback() {
+    final state = context.read<TimelineBloc>().state;
+    if (state.isPlaying) {
+      _engine.pause();
+      context.read<TimelineBloc>().add(const Pause());
+    } else {
+      _engine.play();
+      context.read<TimelineBloc>().add(const Play());
+    }
+  }
+
+  void _seekTo(double seconds) {
+    _engine.seekTo((seconds * 1000000).toInt());
+    context.read<TimelineBloc>().add(SeekTo(seconds));
+  }
   }
 
   void _showPanel(EditorPanel panel) {

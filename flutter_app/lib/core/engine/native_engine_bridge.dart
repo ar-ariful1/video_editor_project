@@ -3,10 +3,8 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
-enum TransitionType { none, dissolve, slide }
-
 class NativeEngineBridge {
-  static const MethodChannel _channel = MethodChannel('com.clipcut.app/engine');
+  static const MethodChannel _channel = MethodChannel('com.clipcut.app/native_engine');
 
   // Singleton pattern
   static final NativeEngineBridge _instance = NativeEngineBridge._internal();
@@ -80,6 +78,24 @@ class NativeEngineBridge {
 
   Future<void> setOpacity(double value) async {
     await _channel.invokeMethod('setOpacity', {'value': value});
+  }
+
+  // --------------------------------------------------------------------------
+  // Audio controls (NEW)
+  // --------------------------------------------------------------------------
+  /// Set volume for a specific audio clip
+  Future<void> setVolume(String clipId, double volume) async {
+    await _channel.invokeMethod('setVolume', {
+      'clipId': clipId,
+      'volume': volume,
+    });
+  }
+
+  /// Get audio waveform data (returns raw PCM bytes)
+  Future<Uint8List?> getAudioWaveform(String path) async {
+    final result = await _channel.invokeMethod('getAudioWaveform', {'path': path});
+    if (result is Uint8List) return result;
+    return null;
   }
 
   // --------------------------------------------------------------------------
