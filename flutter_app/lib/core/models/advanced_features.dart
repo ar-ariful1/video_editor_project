@@ -774,6 +774,27 @@ class ExportJob extends Equatable {
 }
 
 // ============================================================================
+// 10. SPEED RAMPING (Speed Curves)
+// ============================================================================
+
+class SpeedPoint extends Equatable {
+  final double time; // 0.0 – 1.0 (normalized clip time)
+  final double speed; // 0.1x – 8.0x
+
+  const SpeedPoint({required this.time, required this.speed});
+
+  SpeedPoint copyWith({double? time, double? speed}) =>
+      SpeedPoint(time: time ?? this.time, speed: speed ?? this.speed);
+
+  Map<String, dynamic> toJson() => {'time': time, 'speed': speed};
+  factory SpeedPoint.fromJson(Map<String, dynamic> j) =>
+      SpeedPoint(time: j['time'], speed: j['speed']);
+
+  @override
+  List<Object?> get props => [time, speed];
+}
+
+// ============================================================================
 // 9. Easing Type (re-exported for convenience)
 // ============================================================================
 

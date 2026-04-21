@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart';
 import '../../../app_theme.dart';
+import '../widgets/speed_curve_editor.dart';
 
 class SpeedPanel extends StatefulWidget {
   const SpeedPanel({super.key});
@@ -15,6 +16,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
   double _speed = 1.0;
   bool _reversed = false;
   bool _pitchCorrect = true;
+  bool _isRamping = false;
 
   static const _presets = [
     (0.1, '0.1x'),
@@ -162,6 +164,43 @@ class _SpeedPanelState extends State<SpeedPanel> {
             ),
             const SizedBox(height: 16),
 
+            // Speed Ramping & Freeze Frame (New)
+            const Text('Advanced Tools',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: _ToolBtn(
+                  icon: Icons.Speed,
+                  label: 'Speed Curve',
+                  active: _isRamping,
+                  onTap: () => setState(() => _isRamping = !_isRamping),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ToolBtn(
+                  icon: Icons.ac_unit_rounded,
+                  label: 'Freeze Frame',
+                  onTap: () {
+                    // Logic to insert 3s freeze frame at current position
+                  },
+                ),
+              ),
+            ]),
+            if (_isRamping) ...[
+              const SizedBox(height: 16),
+              SpeedCurveEditor(
+                points: clip?.speedCurve ?? [],
+                clipDuration: clip?.duration ?? 1.0,
+                onChanged: (points) => _applySpeedCurve(ctx, state, points),
+              ),
+            ],
+            const SizedBox(height: 16),
+
             // Reverse toggle
             _OptionRow(
               icon: Icons.swap_horiz_rounded,
@@ -236,6 +275,11 @@ class _SpeedPanelState extends State<SpeedPanel> {
     _updateClip(ctx, state, (clip) => clip.copyWith(isReversed: reversed));
   }
 
+  void _applySpeedCurve(
+      BuildContext ctx, TimelineState state, List<SpeedPoint> points) {
+    _updateClip(ctx, state, (clip) => clip.copyWith(speedCurve: points));
+  }
+
   void _updateClip(
       BuildContext ctx, TimelineState state, Clip Function(Clip) updater) {
     for (final track in state.project?.tracks ?? []) {
@@ -249,6 +293,43 @@ class _SpeedPanelState extends State<SpeedPanel> {
       }
     }
   }
+}
+
+class _ToolBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _ToolBtn(
+      {required this.icon,
+      required this.label,
+      this.active = false,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color:
+                active ? AppTheme.accent.withValues(alpha: 0.1) : AppTheme.bg3,
+            borderRadius: BorderRadius.circular(10),
+            border:
+                Border.all(color: active ? AppTheme.accent : AppTheme.border),
+          ),
+          child: Column(children: [
+            Icon(icon,
+                color: active ? AppTheme.accent : AppTheme.textSecondary,
+                size: 20),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    color: active ? AppTheme.accent : AppTheme.textSecondary,
+                    fontSize: 11)),
+          ]),
+        ),
+      );
 }
 
 class _OptionRow extends StatelessWidget {

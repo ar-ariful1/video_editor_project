@@ -15,6 +15,9 @@ class _CropPanelState extends State<CropPanel> {
   double _rotation = 0;
   bool _flipH = false;
   bool _flipV = false;
+  String _fitMode = 'fit'; // fit, fill, stretch
+  double _zoom = 1.0;
+  bool _showGrid = true;
 
   static const _ratios = [
     ('free', 'Free', null),
@@ -69,6 +72,50 @@ class _CropPanelState extends State<CropPanel> {
             ]),
           ),
         ),
+        const SizedBox(height: 18),
+
+        // Zoom Slider (New)
+        const Text('Zoom',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        Row(children: [
+          const Icon(Icons.zoom_out_rounded, color: AppTheme.textTertiary, size: 18),
+          Expanded(
+              child: Slider(
+            value: _zoom,
+            min: 1.0,
+            max: 3.0,
+            onChanged: (v) => setState(() => _zoom = v),
+          )),
+          const Icon(Icons.zoom_in_rounded, color: AppTheme.textTertiary, size: 18),
+        ]),
+        const SizedBox(height: 18),
+
+        // Fit/Fill/Stretch Options (New)
+        const Text('Fitting Mode',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Row(children: [
+          _ModeBtn(
+              label: 'Fit',
+              active: _fitMode == 'fit',
+              onTap: () => setState(() => _fitMode = 'fit')),
+          const SizedBox(width: 8),
+          _ModeBtn(
+              label: 'Fill',
+              active: _fitMode == 'fill',
+              onTap: () => setState(() => _fitMode = 'fill')),
+          const SizedBox(width: 8),
+          _ModeBtn(
+              label: 'Stretch',
+              active: _fitMode == 'stretch',
+              onTap: () => setState(() => _fitMode = 'stretch')),
+        ]),
         const SizedBox(height: 18),
 
         // Aspect ratio presets
@@ -155,13 +202,27 @@ class _CropPanelState extends State<CropPanel> {
         ]),
         const SizedBox(height: 16),
 
-        // Flip
-        const Text('Flip',
-            style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        // Grid & Flip Tools
+        Row(
+          children: [
+            const Text('Flip',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text('Show Grid',
+                style: TextStyle(
+                    color: AppTheme.textTertiary, fontSize: 11)),
+            Switch(
+              value: _showGrid,
+              onChanged: (v) => setState(() => _showGrid = v),
+              activeColor: AppTheme.accent,
+              scale: 0.7,
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
         Row(children: [
           Expanded(
               child: _FlipBtn(
@@ -260,7 +321,8 @@ class _FlipBtn extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: active ? AppTheme.accent.withValues(alpha: 0.2) : AppTheme.bg3,
+            color:
+                active ? AppTheme.accent.withValues(alpha: 0.2) : AppTheme.bg3,
             borderRadius: BorderRadius.circular(10),
             border:
                 Border.all(color: active ? AppTheme.accent : AppTheme.border),
@@ -271,6 +333,38 @@ class _FlipBtn extends StatelessWidget {
                       color: active ? AppTheme.accent : AppTheme.textSecondary,
                       fontSize: 12,
                       fontWeight: active ? FontWeight.w600 : FontWeight.w400))),
+        ),
+      );
+}
+
+class _ModeBtn extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _ModeBtn(
+      {required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: active
+                  ? AppTheme.accent.withValues(alpha: 0.1)
+                  : AppTheme.bg3,
+              borderRadius: BorderRadius.circular(8),
+              border:
+                  Border.all(color: active ? AppTheme.accent : AppTheme.border),
+            ),
+            child: Center(
+                child: Text(label,
+                    style: TextStyle(
+                        color:
+                            active ? AppTheme.accent : AppTheme.textSecondary,
+                        fontSize: 11))),
+          ),
         ),
       );
 }

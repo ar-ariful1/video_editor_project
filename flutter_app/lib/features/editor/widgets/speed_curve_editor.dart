@@ -1,14 +1,7 @@
 // lib/features/editor/widgets/speed_curve_editor.dart
 import 'package:flutter/material.dart';
 import '../../../app_theme.dart';
-
-class SpeedPoint {
-  final double time; // 0.0 – 1.0 (normalized clip time)
-  final double speed; // 0.1x – 8.0x
-  const SpeedPoint(this.time, this.speed);
-  SpeedPoint copyWith({double? time, double? speed}) =>
-      SpeedPoint(time ?? this.time, speed ?? this.speed);
-}
+import '../../../core/models/advanced_features.dart';
 
 class SpeedCurveEditor extends StatefulWidget {
   final List<SpeedPoint> points;
@@ -37,7 +30,7 @@ class _SpeedCurveEditorState extends State<SpeedCurveEditor> {
   void initState() {
     super.initState();
     _points = widget.points.isEmpty
-        ? [const SpeedPoint(0, 1.0), const SpeedPoint(1, 1.0)]
+        ? [const SpeedPoint(time: 0, speed: 1.0), const SpeedPoint(time: 1, speed: 1.0)]
         : List.from(widget.points);
   }
 
@@ -48,8 +41,8 @@ class _SpeedCurveEditorState extends State<SpeedCurveEditor> {
       );
 
   SpeedPoint _fromCanvas(Offset pos, Size size) => SpeedPoint(
-        (pos.dx / size.width).clamp(0, 1),
-        (_minSpeed + (1 - pos.dy / size.height) * (_maxSpeed - _minSpeed))
+        time: (pos.dx / size.width).clamp(0, 1),
+        speed: (_minSpeed + (1 - pos.dy / size.height) * (_maxSpeed - _minSpeed))
             .clamp(_minSpeed, _maxSpeed),
       );
 
@@ -79,14 +72,14 @@ class _SpeedCurveEditorState extends State<SpeedCurveEditor> {
     double minT = _dragging > 0 ? _points[_dragging - 1].time + 0.02 : 0;
     double maxT =
         _dragging < _points.length - 1 ? _points[_dragging + 1].time - 0.02 : 1;
-    np = SpeedPoint(np.time.clamp(minT, maxT), np.speed);
+    np = SpeedPoint(time: np.time.clamp(minT, maxT), speed: np.speed);
     setState(() => _points[_dragging] = np);
     widget.onChanged(_points);
   }
 
   void _reset() {
     setState(
-        () => _points = [const SpeedPoint(0, 1.0), const SpeedPoint(1, 1.0)]);
+        () => _points = [const SpeedPoint(time: 0, speed: 1.0), const SpeedPoint(time: 1, speed: 1.0)]);
     widget.onChanged(_points);
   }
 

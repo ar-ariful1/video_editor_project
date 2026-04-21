@@ -73,6 +73,22 @@ class _AudioPanelState extends State<AudioPanel> {
                   clip: selectedClip!.copyWith(noiseReduction: v),
                 ));
               }),
+          
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Logic for beat detection
+              },
+              icon: const Icon(Icons.waves_rounded, size: 18),
+              label: const Text('Detect Beats'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.accent,
+                side: const BorderSide(color: AppTheme.accent),
+              ),
+            ),
+          ),
           const Divider(height: 32, color: AppTheme.border),
         ],
 
@@ -123,7 +139,9 @@ class _AudioPanelState extends State<AudioPanel> {
               'Compressor',
               'Pitch Up',
               'Pitch Down',
-              'Voice Changer',
+              'Chipmunk',
+              'Deep Voice',
+              'Normalize',
             ]
                 .map((e) => ActionChip(
                       label: Text(e,
@@ -179,17 +197,12 @@ class _EQBand extends StatelessWidget {
             height: 80,
             child: RotatedBox(
               quarterTurns: 3,
-              child:
-              Slider(
-                  value: volume,
-                   min: 0.0,
-                   max: 2.0,
-                   onChanged: (newVol) {
-                   setState(() => volume = newVol);
-                    // Send to native engine
-                    NativeEngineService().setVolume(widget.clipId, newVol);
-                },
-                 )
+              child: Slider(
+                value: value,
+                min: -12.0,
+                max: 12.0,
+                onChanged: onChanged,
+              ),
             ),
           ),
           Text('${value.toInt() > 0 ? '+' : ''}${value.toInt()}dB',

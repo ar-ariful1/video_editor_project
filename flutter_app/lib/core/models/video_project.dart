@@ -497,7 +497,8 @@ class Clip extends Equatable {
   final AdvancedColorGrade? advancedColorGrade; // Color curves & wheels
   final MotionTrack? motionTrack;        // Motion tracking
   final ParticleEffect? particleEffect;  // Fire, snow, rain
-  final List<AutoCaption>? autoCaptions; 
+  final List<AutoCaption>? autoCaptions;
+  final List<SpeedPoint>? speedCurve;
 
   const Clip({
     required this.id,
@@ -534,6 +535,7 @@ class Clip extends Equatable {
     this.motionTrack,
     this.particleEffect,
     this.autoCaptions,
+    this.speedCurve,
   });
 
   factory Clip.create({
@@ -605,6 +607,7 @@ class Clip extends Equatable {
     MotionTrack? motionTrack,
     ParticleEffect? particleEffect,
     List<AutoCaption>? autoCaptions,
+    List<SpeedPoint>? speedCurve,
   }) => Clip(
     id: id ?? this.id,
     startTime: startTime ?? this.startTime, endTime: endTime ?? this.endTime,
@@ -629,6 +632,7 @@ class Clip extends Equatable {
     motionTrack: motionTrack ?? this.motionTrack,
     particleEffect: particleEffect ?? this.particleEffect,
     autoCaptions: autoCaptions ?? this.autoCaptions,
+    speedCurve: speedCurve ?? this.speedCurve,
   );
 
   Map<String, dynamic> toJson() => {
@@ -653,6 +657,7 @@ class Clip extends Equatable {
     'motionTrack': motionTrack?.toJson(),
     'particleEffect': particleEffect?.toJson(),
     'autoCaptions': autoCaptions?.map((c) => c.toJson()).toList(),
+    'speedCurve': speedCurve?.map((p) => p.toJson()).toList(),
   };
 
   factory Clip.fromJson(Map<String, dynamic> j) => Clip(
@@ -685,6 +690,9 @@ class Clip extends Equatable {
     particleEffect: j['particleEffect'] != null ? ParticleEffect.fromJson(j['particleEffect']) : null,
     autoCaptions: j['autoCaptions'] != null 
         ? (j['autoCaptions'] as List).map((c) => AutoCaption.fromJson(c)).toList()
+        : null,
+    speedCurve: j['speedCurve'] != null
+        ? (j['speedCurve'] as List).map((p) => SpeedPoint.fromJson(p)).toList()
         : null,
   );
 

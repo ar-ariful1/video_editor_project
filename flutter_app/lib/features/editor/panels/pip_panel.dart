@@ -34,7 +34,7 @@ class _PiPPanelState extends State<PiPPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -89,7 +89,8 @@ class _PiPPanelState extends State<PiPPanel>
         controller: _tabs,
         tabs: const [
           Tab(text: 'Add Overlay'),
-          Tab(text: 'Layouts')
+          Tab(text: 'Layouts'),
+          Tab(text: 'Styles')
         ],
         labelColor: AppTheme.accent,
         unselectedLabelColor: AppTheme.textTertiary,
@@ -99,6 +100,7 @@ class _PiPPanelState extends State<PiPPanel>
         child: TabBarView(controller: _tabs, children: [
           _buildAddTab(context),
           _buildLayoutTab(context),
+          _buildStyleTab(context),
         ]),
       ),
     ]);
@@ -252,6 +254,270 @@ class _PiPPanelState extends State<PiPPanel>
     );
   }
 
+  Widget _buildStyleTab(BuildContext context) {
+    final state = context.watch<TimelineBloc>().state;
+    final selectedClipId = state.selectedClipId;
+    final selectedTrackId = state.selectedTrackId;
+
+    Clip? selectedClip;
+    if (selectedTrackId != null && selectedClipId != null) {
+      final track = state.project?.tracks.firstWhereOrNull((t) => t.id == selectedTrackId);
+      selectedClip = track?.clips.firstWhereOrNull((c) => c.id == selectedClipId);
+    }
+
+    if (selectedClip == null) {
+      return const Center(
+        child: Text('Select a clip to edit styles',
+            style: TextStyle(color: AppTheme.textTertiary)),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Blend Mode',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.bg3,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<BlendMode>(
+              value: selectedClip.blendMode,
+              isExpanded: true,
+              dropdownColor: AppTheme.bg2,
+              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+              items: BlendMode.values
+                  .map((m) => DropdownMenuItem(
+                      value: m, child: Text(m.name.toUpperCase())))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  _updateClip(context, selectedTrackId!, selectedClip!.copyWith(blendMode: v));
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text('Opacity',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        _StyleSlider(
+          label: 'Level',
+          value: selectedClip.opacity,
+          onChanged: (v) => _updateClip(context, selectedTrackId!, selectedClip!.copyWith(opacity: v)),
+        ),
+        const Divider(height: 32, color: AppTheme.border),
+        
+        // Chroma Key Section
+        _buildChromaKeySection(context, selectedTrackId!, selectedClip),
+        
+        const Divider(height: 32, color: AppTheme.border),
+        
+        // Mask Section
+        _buildMaskSection(context, selectedTrackId!, selectedClip),
+        
+        const SizedBox(height: 20),
+        const Text('Border & Shadow',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        _StyleSlider(label: 'Border Width', value: 0.0, onChanged: (v) {}),
+        _StyleSlider(label: 'Corner Radius', value: 0.0, onChanged: (v) {}),
+        _StyleSlider(label: 'Shadow Blur', value: 0.0, onChanged: (v) {}),
+      ]),
+    );
+  }
+
+  Widget _buildChromaKeySection(BuildContext context, String trackId, Clip clip) {
+    final chroma = clip.chromaKey ?? ChromaKey.create();
+    final enabled = clip.chromaKey != null && clip.chromaKey!.enabled;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Chroma Key (Green Screen)',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            Switch(
+              value: enabled,
+              onChanged: (v) {
+                _updateClip(context, trackId, clip.copyWith(
+                  chromaKey: chroma.copyWith(enabled: v)
+                ));
+              },
+              activeColor: AppTheme.accent,
+            ),
+          ],
+        ),
+        if (enabled) ...[
+          const SizedBox(height: 8),
+          const Text('Key Color', style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+          const SizedBox(height: 8),
+          Row(
+            children: ChromaKeyColor.values.map((c) {
+              final sel = chroma.keyColor == c;
+              return GestureDetector(
+                onTap: () => _updateClip(context, trackId, clip.copyWith(
+                  chromaKey: chroma.copyWith(keyColor: c)
+                )),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: _getChromaColor(c, chroma.customColor),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: sel ? Colors.white : Colors.transparent,
+                      width: 2,
+                    ),
+                    boxShadow: sel ? [const BoxShadow(color: Colors.black45, blurRadius: 4)] : null,
+                  ),
+                  child: sel ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          _StyleSlider(
+            label: 'Similarity',
+            value: chroma.similarity,
+            onChanged: (v) => _updateClip(context, trackId, clip.copyWith(
+              chromaKey: chroma.copyWith(similarity: v)
+            )),
+          ),
+          _StyleSlider(
+            label: 'Smoothness',
+            value: chroma.smoothness,
+            onChanged: (v) => _updateClip(context, trackId, clip.copyWith(
+              chromaKey: chroma.copyWith(smoothness: v)
+            )),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMaskSection(BuildContext context, String trackId, Clip clip) {
+    final mask = clip.mask ?? Mask.create(type: MaskType.none);
+    final enabled = mask.type != MaskType.none;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Masking',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: MaskType.values.map((type) {
+              final sel = mask.type == type;
+              return GestureDetector(
+                onTap: () => _updateClip(context, trackId, clip.copyWith(
+                  mask: mask.copyWith(type: type)
+                )),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: sel ? AppTheme.accent.withValues(alpha: 0.2) : AppTheme.bg3,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: sel ? AppTheme.accent : AppTheme.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(_getMaskIcon(type), color: sel ? AppTheme.accent : AppTheme.textSecondary, size: 20),
+                      const SizedBox(height: 4),
+                      Text(type.name.capitalize, style: TextStyle(color: sel ? AppTheme.accent : AppTheme.textSecondary, fontSize: 10)),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        if (enabled) ...[
+          const SizedBox(height: 16),
+          _StyleSlider(
+            label: 'Feather',
+            value: mask.feather / 100.0, // Assuming 0-100 range for feather
+            onChanged: (v) => _updateClip(context, trackId, clip.copyWith(
+              mask: mask.copyWith(feather: v * 100.0)
+            )),
+          ),
+          _StyleSlider(
+            label: 'Mask Opacity',
+            value: mask.opacity,
+            onChanged: (v) => _updateClip(context, trackId, clip.copyWith(
+              mask: mask.copyWith(opacity: v)
+            )),
+          ),
+          Row(
+            children: [
+              const Text('Invert Mask', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+              const Spacer(),
+              Switch(
+                value: mask.inverted,
+                onChanged: (v) => _updateClip(context, trackId, clip.copyWith(
+                  mask: mask.copyWith(inverted: v)
+                )),
+                activeColor: AppTheme.accent,
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Color _getChromaColor(ChromaKeyColor type, Color custom) {
+    switch (type) {
+      case ChromaKeyColor.green: return Colors.green;
+      case ChromaKeyColor.blue: return Colors.blue;
+      case ChromaKeyColor.red: return Colors.red;
+      case ChromaKeyColor.custom: return custom;
+    }
+  }
+
+  IconData _getMaskIcon(MaskType type) {
+    switch (type) {
+      case MaskType.none: return Icons.block;
+      case MaskType.circle: return Icons.circle_outlined;
+      case MaskType.linear: return Icons.linear_scale;
+      case MaskType.rectangle: return Icons.crop_square;
+      case MaskType.heart: return Icons.favorite_border;
+      case MaskType.star: return Icons.star_border;
+      case MaskType.text: return Icons.text_fields;
+      case MaskType.custom: return Icons.gesture;
+    }
+  }
+
+  void _updateClip(BuildContext context, String trackId, Clip clip) {
+    context.read<TimelineBloc>().add(UpdateClip(trackId: trackId, clip: clip));
+  }
+
   void _applyPiP(BuildContext ctx) {
     ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
         content: Text('✅ PiP applied — drag the overlay in preview to position'),
@@ -277,4 +543,55 @@ class _SplitLayout {
   final IconData icon;
   final String desc;
   const _SplitLayout(this.name, this.icon, this.desc);
+}
+
+class _StyleSlider extends StatelessWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+  final bool hasKeyframes;
+  final VoidCallback? onKeyframeToggle;
+
+  const _StyleSlider({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.hasKeyframes = false,
+    this.onKeyframeToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: const TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+            if (onKeyframeToggle != null)
+              GestureDetector(
+                onTap: onKeyframeToggle,
+                child: Icon(
+                  hasKeyframes ? Icons.diamond : Icons.diamond_outlined,
+                  size: 14,
+                  color: hasKeyframes ? AppTheme.accent : AppTheme.textTertiary,
+                ),
+              ),
+          ],
+        ),
+        Row(children: [
+          Expanded(
+              child: Slider(
+                  value: value,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: onChanged)),
+          Text('${(value * 100).toInt()}%',
+              style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+        ]),
+      ]),
+    );
+  }
 }

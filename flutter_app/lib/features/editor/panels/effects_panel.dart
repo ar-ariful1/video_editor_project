@@ -18,7 +18,7 @@ class _EffectsPanelState extends State<EffectsPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -60,7 +60,12 @@ class _EffectsPanelState extends State<EffectsPanel>
     return Column(children: [
       TabBar(
         controller: _tabs,
-        tabs: const [Tab(text: 'Effects'), Tab(text: 'Transitions')],
+        tabs: const [
+          Tab(text: 'Effects'),
+          Tab(text: 'Transitions'),
+          Tab(text: 'Body'),
+          Tab(text: 'LUTs')
+        ],
         labelColor: AppTheme.accent,
         unselectedLabelColor: AppTheme.textTertiary,
         indicatorColor: AppTheme.accent,
@@ -69,6 +74,8 @@ class _EffectsPanelState extends State<EffectsPanel>
         child: TabBarView(controller: _tabs, children: [
           _buildEffectGrid(context),
           _buildTransitionGrid(context),
+          _buildBodyEffectGrid(context),
+          _buildLUTGrid(context),
         ]),
       ),
     ]);
@@ -151,6 +158,62 @@ class _EffectsPanelState extends State<EffectsPanel>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBodyEffectGrid(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.accessibility_new_rounded,
+              size: 48, color: AppTheme.textTertiary),
+          const SizedBox(height: 12),
+          const Text('Body Effects',
+              style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16)),
+          const SizedBox(height: 4),
+          const Text('AI-powered body tracking effects',
+              style: TextStyle(color: AppTheme.textTertiary, fontSize: 12)),
+          const SizedBox(height: 20),
+          ElevatedButton(onPressed: () {}, child: const Text('Coming Soon')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLUTGrid(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(10),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: 8, // dummy
+      itemBuilder: (_, i) => Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.bg3,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.border),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/lut_preview.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text('LUT ${i + 1}',
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
+        ],
+      ),
     );
   }
 

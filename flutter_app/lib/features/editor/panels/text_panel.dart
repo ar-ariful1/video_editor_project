@@ -17,7 +17,7 @@ class _TextPanelState extends State<TextPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -52,7 +52,8 @@ class _TextPanelState extends State<TextPanel>
             tabs: const [
               Tab(text: 'Font'),
               Tab(text: 'Style'),
-              Tab(text: 'Animate')
+              Tab(text: 'Animate'),
+              Tab(text: 'Effects')
             ],
             labelColor: AppTheme.accent,
             unselectedLabelColor: AppTheme.textTertiary,
@@ -64,6 +65,7 @@ class _TextPanelState extends State<TextPanel>
               _FontTab(layer: clip),
               _StyleTab(layer: clip),
               _AnimateTab(layer: clip),
+              _EffectsTab(layer: clip),
             ]),
           ),
         ]);
@@ -301,6 +303,80 @@ class _StyleTab extends StatelessWidget {
             label: 'Background Box',
             value: (layer?.backgroundOpacity ?? 0) > 0,
             onChanged: (_) {}),
+      ]),
+    );
+  }
+}
+
+class _EffectsTab extends StatelessWidget {
+  final TextLayer? layer;
+  const _EffectsTab({this.layer});
+
+  static const _effects = [
+    ('none', 'None', Icons.block),
+    ('neon', 'Neon', Icons.lightbulb_outline),
+    ('glow', 'Glow', Icons.wb_sunny_outlined),
+    ('3d', '3D', Icons.layers_outlined),
+    ('gradient', 'Gradient', Icons.gradient),
+    ('outline', 'Thick Outline', Icons.radio_button_unchecked),
+    ('shadow_long', 'Long Shadow', Icons.wb_twilight),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Text Effects',
+            style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 1.2,
+          ),
+          itemCount: _effects.length,
+          itemBuilder: (context, index) {
+            final effect = _effects[index];
+            final selected = false; // logic for selection
+            return GestureDetector(
+              onTap: () {},
+              child: Container(
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppTheme.accent.withValues(alpha: 0.1)
+                      : AppTheme.bg3,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: selected ? AppTheme.accent : AppTheme.border),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(effect.$3,
+                        color:
+                            selected ? AppTheme.accent : AppTheme.textSecondary,
+                        size: 20),
+                    const SizedBox(height: 4),
+                    Text(effect.$2,
+                        style: TextStyle(
+                            color: selected
+                                ? AppTheme.accent
+                                : AppTheme.textSecondary,
+                            fontSize: 10)),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ]),
     );
   }

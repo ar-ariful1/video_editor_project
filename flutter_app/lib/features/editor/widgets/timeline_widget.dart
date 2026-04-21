@@ -89,7 +89,29 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
     return Container(
       color: const Color(0xFF0A0A10),
-      child: Row(children: [
+      child: Column(
+        children: [
+          // Timeline Toolbar (New)
+          Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF16161D),
+              border: Border(bottom: BorderSide(color: AppTheme.border)),
+            ),
+            child: Row(children: [
+              _ToolbarBtn(icon: Icons.grid_on_rounded, label: 'Snap', active: true, onTap: () {}),
+              const VerticalDivider(width: 20, indent: 8, endIndent: 8),
+              _ToolbarBtn(icon: Icons.auto_fix_high_rounded, label: 'Magnetic', active: true, onTap: () {}),
+              const VerticalDivider(width: 20, indent: 8, endIndent: 8),
+              _ToolbarBtn(icon: Icons.select_all_rounded, label: 'Multi', onTap: () {}),
+              const Spacer(),
+              Text(_formatTime(widget.currentTime),
+                  style: const TextStyle(color: AppTheme.accent, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+            ]),
+          ),
+          Expanded(
+            child: Row(children: [
         // Track labels
         SizedBox(
           width: _labelWidth,
@@ -382,6 +404,12 @@ class _RulerPainter extends CustomPainter {
     return '$m:$sec';
   }
 
+  static String _formatTime(double s) {
+    final m = (s ~/ 60).toString().padLeft(2, '0');
+    final sec = (s % 60).toInt().toString().padLeft(2, '0');
+    return '$m:$sec';
+  }
+
   @override
   bool shouldRepaint(_RulerPainter old) => old.zoom != zoom;
 }
@@ -461,6 +489,32 @@ class _TrackLabel extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        // Solo button
+        GestureDetector(
+          onTap: () => context
+              .read<TimelineBloc>()
+              .add(UpdateTrack(track.copyWith(isSolo: !track.isSolo))),
+          child: Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: track.isSolo ? Colors.amber : Colors.transparent,
+              border: Border.all(color: track.isSolo ? Colors.amber : const Color(0xFF5C5A78)),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: Center(
+              child: Text(
+                'S',
+                style: TextStyle(
+                  color: track.isSolo ? Colors.black : const Color(0xFF5C5A78),
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
         // Mute button
         GestureDetector(
           onTap: () => context
@@ -471,6 +525,30 @@ class _TrackLabel extends StatelessWidget {
             color: track.isMuted
                 ? const Color(0xFF5C5A78)
                 : const Color(0xFF9D9BB8),
+            size: 14,
+          ),
+        ),
+        const SizedBox(width: 4),
+        // Lock button
+        GestureDetector(
+          onTap: () => context
+              .read<TimelineBloc>()
+              .add(UpdateTrack(track.copyWith(isLocked: !track.isLocked))),
+          child: Icon(
+            track.isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+            color: track.isLocked ? AppTheme.accent : const Color(0xFF5C5A78),
+            size: 14,
+          ),
+        ),
+        const SizedBox(width: 4),
+        // Visibility button
+        GestureDetector(
+          onTap: () => context
+              .read<TimelineBloc>()
+              .add(UpdateTrack(track.copyWith(isCollapsed: !track.isCollapsed))), // Reusing isCollapsed for visibility toggle for now if isVisible doesn't exist, but checking model
+          child: Icon(
+            track.isCollapsed ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+            color: track.isCollapsed ? const Color(0xFF5C5A78) : const Color(0xFF9D9BB8),
             size: 14,
           ),
         ),
@@ -843,6 +921,36 @@ extension _ClipWidgetStateMenu on _ClipWidgetState {
 }
 
 // ── Trim Handle ───────────────────────────────────────────────────────────────
+
+class _ToolbarBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _ToolbarBtn(
+      {required this.icon,
+      required this.label,
+      this.active = false,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(children: [
+            Icon(icon,
+                color: active ? AppTheme.accent : AppTheme.textTertiary,
+                size: 14),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    color: active ? AppTheme.accent : AppTheme.textTertiary,
+                    fontSize: 10)),
+          ]),
+        ),
+      );
+}
 
 class _TrimHandle extends StatelessWidget {
   final Color color;
