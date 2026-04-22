@@ -1,3 +1,4 @@
+// lib/features/editor/editor_screen.dart
 import 'package:flutter/material.dart' hide Clip;
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -59,6 +60,12 @@ class EditorScreen extends StatefulWidget {
 }
 
 class _EditorScreenState extends State<EditorScreen> {
+  // ----- Fixed missing declarations -----
+  late NativeEngineBridge _engine;
+  int? _previewTextureId;
+  bool _engineReady = false;
+  // --------------------------------------
+
   EditorPanel _activePanel = EditorPanel.none;
   bool _isPanelOpen = false;
 
@@ -71,7 +78,7 @@ class _EditorScreenState extends State<EditorScreen> {
       context.read<TimelineBloc>().add(LoadProjectById(widget.projectId!));
     }
   }
-   
+
   Future<void> _initEngine() async {
     _engine = NativeEngineBridge();
     await _engine.initialize();
@@ -79,21 +86,20 @@ class _EditorScreenState extends State<EditorScreen> {
     setState(() => _engineReady = true);
   }
 
-
   @override
   void dispose() {
     _engine.release();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
-  
+
   Future<void> _loadClipToEngine(Clip clip) async {
     if (clip.mediaType == 'video') {
       final metadata = await _engine.loadVideo(clip.mediaPath);
-      // মেটাডেটা সংরক্ষণ করতে পারেন
+      // You can store metadata if needed
     }
   }
-  
+
   void _togglePlayback() {
     final state = context.read<TimelineBloc>().state;
     if (state.isPlaying) {
@@ -108,7 +114,6 @@ class _EditorScreenState extends State<EditorScreen> {
   void _seekTo(double seconds) {
     _engine.seekTo((seconds * 1000000).toInt());
     context.read<TimelineBloc>().add(SeekTo(seconds));
-  }
   }
 
   void _showPanel(EditorPanel panel) {
@@ -167,7 +172,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   currentTime: state.currentTime,
                   isPlaying: state.isPlaying,
                   selectedClipId: state.selectedClipId,
-                )
+                ),
               ),
               _buildToolbar(),
               Expanded(
@@ -185,7 +190,7 @@ class _EditorScreenState extends State<EditorScreen> {
               _buildFooter(state),
             ],
           );
-        }
+        },
       ),
     );
   }

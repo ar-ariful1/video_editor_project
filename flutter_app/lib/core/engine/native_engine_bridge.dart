@@ -110,6 +110,7 @@ class NativeEngineBridge {
 
   Stream<double> get exportProgress {
     return _channel
+    
         .receiveBroadcastStream()
         .where((event) => event is Map && event['type'] == 'exportProgress')
         .map((event) => (event['progress'] as num).toDouble());

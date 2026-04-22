@@ -1,8 +1,10 @@
 // lib/features/editor/panels/crop_panel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:collection/collection.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../app_theme.dart';
+import '../../../core/engine/native_engine_bridge.dart';
 
 class CropPanel extends StatefulWidget {
   const CropPanel({super.key});
@@ -18,6 +20,12 @@ class _CropPanelState extends State<CropPanel> {
   String _fitMode = 'fit'; // fit, fill, stretch
   double _zoom = 1.0;
   bool _showGrid = true;
+
+  // Crop rectangle values (normalized 0..1)
+  double _cropLeft = 0.0;
+  double _cropTop = 0.0;
+  double _cropWidth = 1.0;
+  double _cropHeight = 1.0;
 
   static const _ratios = [
     ('free', 'Free', null),
@@ -74,7 +82,7 @@ class _CropPanelState extends State<CropPanel> {
         ),
         const SizedBox(height: 18),
 
-        // Zoom Slider (New)
+        // Zoom Slider
         const Text('Zoom',
             style: TextStyle(
                 color: AppTheme.textSecondary,
@@ -93,7 +101,7 @@ class _CropPanelState extends State<CropPanel> {
         ]),
         const SizedBox(height: 18),
 
-        // Fit/Fill/Stretch Options (New)
+        // Fit/Fill/Stretch Options
         const Text('Fitting Mode',
             style: TextStyle(
                 color: AppTheme.textSecondary,
@@ -253,18 +261,11 @@ class _CropPanelState extends State<CropPanel> {
       ]),
     );
   }
-  
-
-  // When user confirms crop:
-void _applyCrop() {
-  final cropRect = Rect.fromLTWH(cropLeft, cropTop, cropWidth, cropHeight);
-  NativeEngineService().setCrop(widget.clipId, cropRect);
-  Navigator.pop(context);
-}
 
   void _apply(BuildContext context) {
     final state = context.read<TimelineBloc>().state;
-    if (state.selectedClipId == null) {
+    final clipId = state.selectedClipId;
+    if (clipId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Select a clip first')),
       );
@@ -273,7 +274,7 @@ void _applyCrop() {
 
     // Find the clip and its track
     for (final track in state.project?.tracks ?? []) {
-      final clip = track.clips.firstWhereOrNull((c) => c.id == state.selectedClipId);
+      final clip = track.clips.firstWhereOrNull((c) => c.id == clipId);
       if (clip != null) {
         // Build the updated transform object
         final updatedTransform = clip.transform.copyWith(
@@ -290,9 +291,10 @@ void _applyCrop() {
           ),
         ));
 
-        // Note: The BLoC now handles notifying the Native Engine 
-        // through its updated _onUpdateClip handler.
-        
+        // Also call native engine for crop
+        final cropRect = Rect.fromLTWH(_cropLeft, _cropTop, _cropWidth, _cropHeight);
+        NativeEngineBridge().setCrop(clipId, cropRect);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Transform applied successfully')),
         );
@@ -383,4 +385,3 @@ class _ModeBtn extends StatelessWidget {
         ),
       );
 }
-

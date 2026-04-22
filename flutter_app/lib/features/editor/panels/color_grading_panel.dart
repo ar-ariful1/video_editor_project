@@ -1,3 +1,4 @@
+// lib/features/editor/panels/color_grading_panel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/bloc/timeline_bloc.dart';
@@ -94,23 +95,17 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
           widgets.ColorWheel(
             label: 'LIFT',
             color: Colors.white,
-            onChanged: (c) {
-              // Update Lift logic here
-            },
+            onChanged: (c) {},
           ),
           widgets.ColorWheel(
             label: 'GAMMA',
             color: Colors.white,
-            onChanged: (c) {
-              // Update Gamma logic here
-            },
+            onChanged: (c) {},
           ),
           widgets.ColorWheel(
             label: 'GAIN',
             color: Colors.white,
-            onChanged: (c) {
-              // Update Gain logic here
-            },
+            onChanged: (c) {},
           ),
         ],
       ),
@@ -138,9 +133,7 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
           child: CurvesWidget(
             channelColor: _selectedCurveChannel,
             points: [CurvePoint(0, 0), CurvePoint(0.5, 0.5), CurvePoint(1, 1)],
-            onChanged: (points) {
-              // Update curves logic in BLoC
-            },
+            onChanged: (points) {},
           ),
         ),
       ],
@@ -165,13 +158,14 @@ class _ColorGradingPanelState extends State<ColorGradingPanel> with SingleTicker
         ),
       ),
     );
+  }
+
   Widget _buildLUTPanel() {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         ElevatedButton.icon(
           onPressed: () {
-            // Pick .cube file logic
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Picking .cube LUT file...')),
             );

@@ -431,11 +431,6 @@ class _RulerPainter extends CustomPainter {
     return '$m:$sec';
   }
 
-  static String _formatTime(double s) {
-    final m = (s ~/ 60).toString().padLeft(2, '0');
-    final sec = (s % 60).toInt().toString().padLeft(2, '0');
-    return '$m:$sec';
-  }
 
   @override
   bool shouldRepaint(_RulerPainter old) => old.zoom != zoom;

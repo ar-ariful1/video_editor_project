@@ -1,14 +1,38 @@
+// lib/features/editor/panels/audio_panel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../app_theme.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart';
+import '../../../core/engine/native_engine_bridge.dart';
 
 class AudioPanel extends StatefulWidget {
   final String? selectedClipId;
   const AudioPanel({super.key, this.selectedClipId});
+
   @override
   State<AudioPanel> createState() => _AudioPanelState();
+}
+
+class _AudioPanelState extends State<AudioPanel> {
+  double _masterVolume = 1.0;
+  bool _noiseReduction = false;
+  double _eqBass = 0.0;
+  double _eqMid = 0.0;
+  double _eqTreble = 0.0;
+
+  Future<void> _removeSilence() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Analyzing audio for silence removal...')),
+    );
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Silence removed successfully')),
+      );
+    }
+  }
+
   Widget _buildMasterMixer(VideoProject project) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -39,25 +63,25 @@ class AudioPanel extends StatefulWidget {
                   ),
                   onPressed: () {
                     context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
+                          track.copyWith(isMuted: !track.isMuted),
+                        ));
                   },
                 ),
                 Expanded(
                   child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
+                    data: const SliderThemeData(
                       trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
                     ),
                     child: Slider(
                       value: track.isMuted ? 0 : track.volume,
                       onChanged: (v) {
                         context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
+                              track.copyWith(
+                                volume: v,
+                                isMuted: v == 0,
+                              ),
+                            ));
                       },
                     ),
                   ),
@@ -69,146 +93,6 @@ class AudioPanel extends StatefulWidget {
       ),
     );
   }
-}
-
-class _AudioPanelState extends State<AudioPanel> {
-  double _masterVolume = 1.0;
-  bool _noiseReduction = false;
-  double _eqBass = 0.0;
-  double _eqMid = 0.0;
-  double _eqTreble = 0.0;
-
-  Future<void> _removeSilence() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Analyzing audio for silence removal...')),
-    );
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Silence removed successfully')),
-      );
-      Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-    Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -226,250 +110,11 @@ class _AudioPanelState extends State<AudioPanel> {
             selectedClip = clip;
             selectedTrack = track;
             break;
-            Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-          Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-        Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-      Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
+          }
+        }
+        if (selectedClip != null) break;
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(14),
@@ -491,20 +136,20 @@ class _AudioPanelState extends State<AudioPanel> {
                     value: selectedClip.volume,
                     onChanged: (v) {
                       context.read<TimelineBloc>().add(UpdateClip(
-                        trackId: selectedTrack!.id,
-                        clip: selectedClip!.copyWith(volume: v),
-                      ));
+                            trackId: selectedTrack!.id,
+                            clip: selectedClip!.copyWith(volume: v),
+                          ));
                     })),
             const Icon(Icons.volume_up, color: AppTheme.textTertiary, size: 18),
           ]),
 
           _SwitchRow('Noise Reduction (Native)', selectedClip.noiseReduction,
               (v) {
-                context.read<TimelineBloc>().add(UpdateClip(
+            context.read<TimelineBloc>().add(UpdateClip(
                   trackId: selectedTrack!.id,
                   clip: selectedClip!.copyWith(noiseReduction: v),
                 ));
-              }),
+          }),
           
           const SizedBox(height: 12),
           SizedBox(
@@ -608,8 +253,8 @@ class _AudioPanelState extends State<AudioPanel> {
                       side: const BorderSide(color: AppTheme.border),
                       onPressed: () {
                         if (selectedClip != null && selectedTrack != null) {
-                          // Connect to NativeEngineService applyEffect
-                          NativeEngineService().applyEffect(
+                          // Connect to NativeEngineBridge
+                          NativeEngineBridge().applyEffect(
                             selectedClip.id,
                             'audio_${e.toLowerCase().replaceAll(' ', '_')}',
                             {'intensity': 1.0},
@@ -617,191 +262,11 @@ class _AudioPanelState extends State<AudioPanel> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Applied $e effect')),
                           );
-                          Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
+                        }
                       },
                     ))
                 .toList()),
       ]),
-    );
-    Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-  Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
     );
   }
 }
@@ -831,66 +296,6 @@ class _AudioSourceButton extends StatelessWidget {
           ]),
         ),
       );
-  Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 }
 
 class _EQBand extends StatelessWidget {
@@ -922,66 +327,6 @@ class _EQBand extends StatelessWidget {
                   const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
         ]),
       );
-  Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 }
 
 class _SwitchRow extends StatelessWidget {
@@ -998,64 +343,4 @@ class _SwitchRow extends StatelessWidget {
                     color: AppTheme.textPrimary, fontSize: 13))),
         Switch(value: value, onChanged: onChanged),
       ]);
-  Widget _buildMasterMixer(VideoProject project) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bg3,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        children: project.tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    track.name,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    track.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                    size: 16,
-                    color: track.isMuted ? Colors.redAccent : AppTheme.accent,
-                  ),
-                  onPressed: () {
-                    context.read<TimelineBloc>().add(UpdateTrack(
-                      track.copyWith(isMuted: !track.isMuted),
-                    ));
-                  },
-                ),
-                Expanded(
-                  child: SliderTheme(
-                    data: AppTheme.sliderTheme(context).copyWith(
-                      trackHeight: 2,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    ),
-                    child: Slider(
-                      value: track.isMuted ? 0 : track.volume,
-                      onChanged: (v) {
-                        context.read<TimelineBloc>().add(UpdateTrack(
-                          track.copyWith(
-                            volume: v,
-                            isMuted: v == 0,
-                          ),
-                        ));
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 }

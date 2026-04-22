@@ -1,3 +1,4 @@
+// lib/features/editor/panels/particle_panel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/bloc/timeline_bloc.dart';
@@ -52,7 +53,7 @@ class ParticlePanel extends StatelessWidget {
         children: ParticleType.values.map((type) {
           final isSelected = clip.particleEffect?.type == type;
           return Padding(
-            padding: const EdgeInsets.right(12),
+            padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
               onTap: () => _toggleParticle(context, clip, type),
               child: Column(
@@ -61,7 +62,7 @@ class ParticlePanel extends StatelessWidget {
                     width: 70,
                     height: 70,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppTheme.accent.withOpacity(0.2) : AppTheme.bg3,
+                      color: isSelected ? AppTheme.accent.withValues(alpha: 0.2) : AppTheme.bg3,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? AppTheme.accent : AppTheme.border,
@@ -154,7 +155,10 @@ class ParticlePanel extends StatelessWidget {
           ],
         ),
         SliderTheme(
-          data: AppTheme.sliderTheme(context),
+          data: const SliderThemeData(
+            trackHeight: 2,
+            thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+          ),
           child: Slider(
             value: value,
             min: min,

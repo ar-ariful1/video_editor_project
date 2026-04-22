@@ -1,5 +1,7 @@
+// lib/features/editor/panels/text_panel.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:collection/collection.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart';
 import '../../../app_theme.dart';
@@ -100,12 +102,11 @@ class _TextPanelState extends State<TextPanel>
       // Create text track if it doesn't exist
       context.read<TimelineBloc>().add(const AddTrack(type: TrackType.text, name: 'Text 1'));
       
-      // Wait for the track to be created and then add the clip
-      // A better way is to do it in one go in Bloc, but for now we'll use a listener or just dispatch another event.
-      // Since AddTrack is synchronous in Bloc, we can just grab the new state if we were inside a bloc, 
-      // but here we are in UI. 
-      // Actually, let's just dispatch AddTrack and rely on the fact that the user can click again,
-      // OR better, add a dedicated event to Bloc for "Add Text with Track Creation".
+      // Since AddTrack is synchronous, we can get the updated state and add clip
+      // For simplicity, we'll just show a message or rely on the user to click again
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Text track created. Please add text again.')),
+      );
     } else {
       context
           .read<TimelineBloc>()
@@ -130,7 +131,7 @@ class _FontTab extends StatelessWidget {
   ];
   static const _sizes = [20.0, 28.0, 36.0, 48.0, 60.0, 72.0, 96.0];
 
-  void _onChipTap(String property, dynamic value) {
+  void _onChipTap(BuildContext context, String property, dynamic value) {
     if (layer == null) return;
     
     final updated = property == 'fontFamily' 
@@ -174,7 +175,7 @@ class _FontTab extends StatelessWidget {
             itemCount: _fonts.length,
             separatorBuilder: (_, __) => const SizedBox(width: 6),
             itemBuilder: (_, i) => GestureDetector(
-              onTap: () => _onChipTap('fontFamily', _fonts[i]),
+              onTap: () => _onChipTap(context, 'fontFamily', _fonts[i]),
               child: _Chip(
                   label: _fonts[i], selected: layer?.fontFamily == _fonts[i]),
             ),
@@ -193,7 +194,7 @@ class _FontTab extends StatelessWidget {
                         child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: GestureDetector(
-                        onTap: () => _onChipTap('fontSize', s),
+                        onTap: () => _onChipTap(context, 'fontSize', s),
                         child: _Chip(
                             label: s.toInt().toString(),
                             selected: layer?.fontSize == s,
@@ -210,17 +211,17 @@ class _FontTab extends StatelessWidget {
         const SizedBox(height: 8),
         Row(children: [
           GestureDetector(
-            onTap: () => _onChipTap('alignment', TextAlignment.left),
+            onTap: () => _onChipTap(context, 'alignment', TextAlignment.left),
             child: _Chip(label: 'Left', selected: layer?.alignment == TextAlignment.left),
           ),
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: () => _onChipTap('alignment', TextAlignment.center),
+            onTap: () => _onChipTap(context, 'alignment', TextAlignment.center),
             child: _Chip(label: 'Center', selected: layer?.alignment == TextAlignment.center),
           ),
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: () => _onChipTap('alignment', TextAlignment.right),
+            onTap: () => _onChipTap(context, 'alignment', TextAlignment.right),
             child: _Chip(label: 'Right', selected: layer?.alignment == TextAlignment.right),
           ),
         ]),
@@ -233,7 +234,7 @@ class _StyleTab extends StatelessWidget {
   final TextLayer? layer;
   const _StyleTab({this.layer});
 
-  void _onColorTap(int color) {
+  void _onColorTap(BuildContext context, int color) {
     if (layer == null) return;
     final updated = layer!.copyWith(fill: TextFill(colors: [color]));
 
@@ -276,7 +277,7 @@ class _StyleTab extends StatelessWidget {
               0xFF60A5FA,
             ]
                 .map((c) => GestureDetector(
-                      onTap: () => _onColorTap(c),
+                      onTap: () => _onColorTap(context, c),
                       child: Container(
                         width: 32,
                         height: 32,
@@ -543,4 +544,3 @@ class _SwitchRow extends StatelessWidget {
         ]),
       );
 }
-

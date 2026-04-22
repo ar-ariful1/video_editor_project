@@ -257,6 +257,10 @@ class DeselectAll extends TimelineEvent {
   const DeselectAll();
 }
 
+class SelectAllClips extends TimelineEvent {
+  const SelectAllClips();
+}
+
 class RemoveSelectedClips extends TimelineEvent {
   const RemoveSelectedClips();
 }
@@ -984,7 +988,6 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final clips = track.clips.map((c) {
         if (c.id != event.clipId) return c;
         if (event.isAdjustmentLayer && c is AdjustmentLayer) {
-            // Special handling for adjustment layer output if needed
             return c.copyWith(mediaPath: event.newMediaPath);
         }
         return c.copyWith(
@@ -1033,8 +1036,6 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final clip = track.clips.firstWhereOrNull((c) => c.id == event.clipId);
       if (clip == null || clip.mediaType != 'video') return project;
 
-      // Unlink is basically Extract Audio + Mute Video, but in CapCut it also separates them visually.
-      // We'll reuse ExtractAudio logic for now.
       var audioTrack = project.tracks.firstWhereOrNull((t) => t.type == TrackType.audio);
       if (audioTrack == null) {
         audioTrack = Track.create(name: 'Audio 1', type: TrackType.audio, zIndex: 0);
@@ -1105,12 +1106,10 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final List<Clip> updatedClips = [];
       final sourceClips = [...videoTrack.clips]..sort((a, b) => a.startTime.compareTo(b.startTime));
 
-      // Match each beat to a clip transition
       for (int i = 0; i < event.beatTimes.length; i++) {
         final startTime = i == 0 ? 0.0 : event.beatTimes[i - 1];
         final endTime = event.beatTimes[i];
 
-        // Take a clip from source (cycling if necessary)
         final sourceClip = sourceClips[i % sourceClips.length];
 
         updatedClips.add(sourceClip.copyWith(
@@ -1135,8 +1134,7 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final updatedProject = _updateTrackInProject(project, track.copyWith(clips: clips));
       
       // SYNC WITH NATIVE ENGINE
-      // Whenever a clip is updated, we notify the engine of the new properties
-      NativeEngineService().renderFrame(state.currentTime); 
+      TimelineEngine().renderFrame(state.currentTime); 
       
       return updatedProject;
     });
@@ -1172,7 +1170,6 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       emit(state.copyWith(
         selectedClipIds: newSelectedIds,
         isMultiSelectMode: newSelectedIds.isNotEmpty,
-        // If we only have one item, also set it as primary selected clip for property panels
         selectedClipId: newSelectedIds.length == 1 ? newSelectedIds.first : null,
       ));
     } else {
@@ -1232,18 +1229,14 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       if (track == null) return project;
       final clips = track.clips.map((c) {
         if (c.id != event.clipId) return c;
-
-        var updatedKeyframes = [...c.keyframes];
+        final existing = c.keyframes.toList();
+        // Merge keyframes, replacing if same property and time close
         for (final newKf in event.keyframes) {
-          updatedKeyframes = updatedKeyframes
-              .where((k) => !(k.property == newKf.property &&
-                  (k.time - newKf.time).abs() < 0.001))
-              .toList();
-          updatedKeyframes.add(newKf);
+          existing.removeWhere((k) => k.property == newKf.property && (k.time - newKf.time).abs() < 0.001);
+          existing.add(newKf);
         }
-        updatedKeyframes.sort((a, b) => a.time.compareTo(b.time));
-
-        return c.copyWith(keyframes: updatedKeyframes);
+        existing.sort((a, b) => a.time.compareTo(b.time));
+        return c.copyWith(keyframes: existing);
       }).toList();
       return _updateTrackInProject(project, track.copyWith(clips: clips));
     });
@@ -1256,9 +1249,7 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       if (track == null) return project;
       final clips = track.clips.map((c) {
         if (c.id != event.clipId) return c;
-        return c.copyWith(
-            keyframes:
-                c.keyframes.where((k) => k.id != event.keyframeId).toList());
+        return c.copyWith(keyframes: c.keyframes.where((k) => k.id != event.keyframeId).toList());
       }).toList();
       return _updateTrackInProject(project, track.copyWith(clips: clips));
     });
@@ -1266,104 +1257,93 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
   }
 
   void _onAddTrack(AddTrack event, Emitter<TimelineState> emit) {
-    if (state.project == null) return;
-    final maxZ = state.project!.tracks.isEmpty
-        ? 0
-        : state.project!.tracks
-            .map((t) => t.zIndex)
-            .fold(0, (a, b) => a > b ? a : b);
-    final trackName = event.name ??
-        '${event.type.name.capitalize} ${state.project!.tracks.where((t) => t.type == event.type).length + 1}';
-    final track =
-        Track.create(name: trackName, type: event.type, zIndex: maxZ + 1);
-    final newState = _withUndoableMutation(state,
-        (project) => project.copyWith(tracks: [...project.tracks, track]));
+    final newState = _withUndoableMutation(state, (project) {
+      final maxZ = project.tracks.isEmpty ? 0 : project.tracks.map((t) => t.zIndex).reduce((a, b) => a > b ? a : b);
+      final newTrack = Track.create(
+        name: event.name ?? 'Track ${project.tracks.length + 1}',
+        type: event.type,
+        zIndex: maxZ + 1,
+      );
+      return project.copyWith(tracks: [...project.tracks, newTrack]);
+    });
     emit(newState);
   }
 
   void _onRemoveTrack(RemoveTrack event, Emitter<TimelineState> emit) {
-    final newState = _withUndoableMutation(
-      state,
-      (project) => project.copyWith(
-          tracks: project.tracks.where((t) => t.id != event.trackId).toList()),
-    );
+    final newState = _withUndoableMutation(state, (project) {
+      return project.copyWith(tracks: project.tracks.where((t) => t.id != event.trackId).toList());
+    });
     emit(newState);
   }
 
   void _onReorderTrack(ReorderTrack event, Emitter<TimelineState> emit) {
     final newState = _withUndoableMutation(state, (project) {
-      final tracks = [...project.tracks];
-      final item = tracks.removeAt(event.oldIndex);
-      tracks.insert(event.newIndex, item);
-      final reindexed = tracks
-          .asMap()
-          .entries
-          .map((e) => e.value.copyWith(zIndex: e.key))
-          .toList();
-      return project.copyWith(tracks: reindexed);
+      final tracks = List<Track>.from(project.tracks);
+      final track = tracks.removeAt(event.oldIndex);
+      tracks.insert(event.newIndex, track);
+      // Reassign zIndex based on order
+      for (int i = 0; i < tracks.length; i++) {
+        tracks[i] = tracks[i].copyWith(zIndex: i);
+      }
+      return project.copyWith(tracks: tracks);
     });
     emit(newState);
   }
 
   void _onUpdateTrack(UpdateTrack event, Emitter<TimelineState> emit) {
-    if (state.project == null) return;
-    emit(state.copyWith(
-      project: _updateTrackInProject(state.project!, event.track),
-    ));
+    final newState = _withUndoableMutation(state, (project) {
+      return _updateTrackInProject(project, event.track);
+    });
+    emit(newState);
   }
 
   void _onUndo(Undo event, Emitter<TimelineState> emit) {
-    if (state.undoStack.isEmpty) return;
-    final undo = [...state.undoStack];
-    final prev = undo.removeLast();
-    final redo = [...state.redoStack, state.project!];
+    if (!state.canUndo || state.undoStack.isEmpty) return;
+    final newUndoStack = List<VideoProject>.from(state.undoStack);
+    final prev = newUndoStack.removeLast();
+    final newRedoStack = [...state.redoStack, state.project!];
     emit(state.copyWith(
       project: prev,
-      undoStack: undo,
-      redoStack: redo,
-      canUndo: undo.isNotEmpty,
+      undoStack: newUndoStack,
+      redoStack: newRedoStack,
+      canUndo: newUndoStack.isNotEmpty,
       canRedo: true,
     ));
   }
 
   void _onRedo(Redo event, Emitter<TimelineState> emit) {
-    if (state.redoStack.isEmpty) return;
-    final redo = [...state.redoStack];
-    final next = redo.removeLast();
-    final undo = [...state.undoStack, state.project!];
+    if (!state.canRedo || state.redoStack.isEmpty) return;
+    final newRedoStack = List<VideoProject>.from(state.redoStack);
+    final next = newRedoStack.removeLast();
+    final newUndoStack = [...state.undoStack, state.project!];
     emit(state.copyWith(
       project: next,
-      undoStack: undo,
-      redoStack: redo,
+      undoStack: newUndoStack,
+      redoStack: newRedoStack,
       canUndo: true,
-      canRedo: redo.isNotEmpty,
+      canRedo: newRedoStack.isNotEmpty,
     ));
   }
 
   void _onSetZoom(SetZoom event, Emitter<TimelineState> emit) {
-    emit(state.copyWith(zoom: event.zoom.clamp(20.0, 1000.0)));
+    emit(state.copyWith(zoom: event.zoom.clamp(10.0, 500.0)));
   }
 
   void _onUpdateResolution(UpdateResolution event, Emitter<TimelineState> emit) {
-    if (state.project == null) return;
-    final newState = _withUndoableMutation(state, (project) => project.copyWith(resolution: event.resolution));
+    final newState = _withUndoableMutation(state, (project) {
+      return project.copyWith(resolution: event.resolution);
+    });
     emit(newState);
   }
 
   void _onRenameProject(RenameProject event, Emitter<TimelineState> emit) {
-    if (state.project == null) return;
-    final newState = _withUndoableMutation(state, (project) => project.copyWith(name: event.name));
+    final newState = _withUndoableMutation(state, (project) {
+      return project.copyWith(name: event.name);
+    });
     emit(newState);
   }
 
-  Future<void> _onAIObjectRemoval(AIObjectRemoval event, Emitter<TimelineState> emit) async {
-    // This is handled in the UI panel mostly, but we can use this event
-    // to track the action or if we want to run it from Bloc.
-    // For now, it's a placeholder if we need centralized AI job management.
+  void _onAIObjectRemoval(AIObjectRemoval event, Emitter<TimelineState> emit) {
+    // Stub for AI object removal
   }
-}
-
-extension StringExt on String {
-  String get capitalize =>
-      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
 }
