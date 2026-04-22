@@ -176,7 +176,7 @@ class _SpeedPanelState extends State<SpeedPanel> {
             Row(children: [
               Expanded(
                 child: _ToolBtn(
-                  icon: Icons.Speed,
+                  icon: Icon(Icons.speed),
                   label: 'Speed Curve',
                   active: _isRamping,
                   onTap: () => setState(() => _isRamping = !_isRamping),

@@ -9,6 +9,7 @@ import '../../../app_theme.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart';
 
+
 class MediaBinPanel extends StatelessWidget {
   const MediaBinPanel({super.key});
 

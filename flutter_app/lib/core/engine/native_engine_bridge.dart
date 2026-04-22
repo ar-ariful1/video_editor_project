@@ -1,10 +1,12 @@
 // lib/core/engine/native_engine_bridge.dart
+import 'dart:ui';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
 class NativeEngineBridge {
-  static const MethodChannel _channel = MethodChannel('com.clipcut.app/native_engine');
+  static const MethodChannel _methodChannel = MethodChannel('com.clipcut.app/native_engine');
+  static const EventChannel _progressChannel = EventChannel('com.clipcut.app/export_progress');
 
   // Singleton pattern
   static final NativeEngineBridge _instance = NativeEngineBridge._internal();
@@ -15,112 +17,131 @@ class NativeEngineBridge {
   // Engine lifecycle
   // --------------------------------------------------------------------------
   Future<void> initialize() async {
-    await _channel.invokeMethod('initialize');
+    await _methodChannel.invokeMethod('initialize');
   }
 
   Future<void> release() async {
-    await _channel.invokeMethod('release');
+    await _methodChannel.invokeMethod('release');
   }
+
+  Future<void> applyEffect(String clipId, String effectId, Map<String, dynamic> params) async {
+    await _methodChannel.invokeMethod('applyEffect', {
+     'clipId': clipId,
+     'effectId': effectId,
+     'params': params,
+    });
+  }
+
+ Future<void> setCrop(String clipId, Rect cropRect) async {
+   await _methodChannel.invokeMethod('setCrop', {
+     'clipId': clipId,
+     'left': cropRect.left,
+     'top': cropRect.top,
+     'right': cropRect.right,
+     'bottom': cropRect.bottom,
+   });
+ }
 
   // --------------------------------------------------------------------------
   // Video loading and rendering
   // --------------------------------------------------------------------------
   /// Load a video file and return its metadata
   Future<VideoMetadata> loadVideo(String filePath) async {
-    final result = await _channel.invokeMethod('loadVideo', {'path': filePath});
-    return VideoMetadata.fromMap(result);
+    final result = await _methodChannel.invokeMethod('loadVideo', {'path': filePath});
+    return VideoMetadata.fromMap(Map<String, dynamic>.from(result));
   }
 
   /// Get a texture ID for Flutter Texture widget
   Future<int> createVideoTexture() async {
-    return await _channel.invokeMethod('createVideoTexture');
+    return await _methodChannel.invokeMethod('createVideoTexture');
   }
 
   /// Render a specific frame at time (microseconds)
   Future<void> renderFrameAt(int timeUs) async {
-    await _channel.invokeMethod('renderFrameAt', {'timeUs': timeUs});
+    await _methodChannel.invokeMethod('renderFrameAt', {'timeUs': timeUs});
   }
 
   /// Seek to a position and update preview
   Future<void> seekTo(int timeUs) async {
-    await _channel.invokeMethod('seekTo', {'timeUs': timeUs});
+    await _methodChannel.invokeMethod('seekTo', {'timeUs': timeUs});
   }
 
   // --------------------------------------------------------------------------
   // Playback control
   // --------------------------------------------------------------------------
   Future<void> play() async {
-    await _channel.invokeMethod('play');
+    await _methodChannel.invokeMethod('play');
   }
 
   Future<void> pause() async {
-    await _channel.invokeMethod('pause');
+    await _methodChannel.invokeMethod('pause');
   }
 
   Future<bool> isPlaying() async {
-    return await _channel.invokeMethod('isPlaying');
+    return await _methodChannel.invokeMethod('isPlaying');
   }
 
   // --------------------------------------------------------------------------
   // Effects & Adjustments
   // --------------------------------------------------------------------------
   Future<void> setBrightness(double value) async {
-    await _channel.invokeMethod('setBrightness', {'value': value});
+    await _methodChannel.invokeMethod('setBrightness', {'value': value});
   }
 
   Future<void> setContrast(double value) async {
-    await _channel.invokeMethod('setContrast', {'value': value});
+    await _methodChannel.invokeMethod('setContrast', {'value': value});
   }
 
   Future<void> setSaturation(double value) async {
-    await _channel.invokeMethod('setSaturation', {'value': value});
+    await _methodChannel.invokeMethod('setSaturation', {'value': value});
   }
 
   Future<void> setOpacity(double value) async {
-    await _channel.invokeMethod('setOpacity', {'value': value});
+    await _methodChannel.invokeMethod('setOpacity', {'value': value});
   }
 
   // --------------------------------------------------------------------------
-  // Audio controls (NEW)
+  // Audio controls
   // --------------------------------------------------------------------------
-  /// Set volume for a specific audio clip
   Future<void> setVolume(String clipId, double volume) async {
-    await _channel.invokeMethod('setVolume', {
+    await _methodChannel.invokeMethod('setVolume', {
       'clipId': clipId,
       'volume': volume,
     });
   }
 
-  /// Get audio waveform data (returns raw PCM bytes)
   Future<Uint8List?> getAudioWaveform(String path) async {
-    final result = await _channel.invokeMethod('getAudioWaveform', {'path': path});
+    final result = await _methodChannel.invokeMethod('getAudioWaveform', {'path': path});
     if (result is Uint8List) return result;
     return null;
   }
-  
+
   Future<void> cancelExport() async {
-  await _channel.invokeMethod('cancelExport');
-}
+    await _methodChannel.invokeMethod('cancelExport');
+  }
+
   // --------------------------------------------------------------------------
   // Export
   // --------------------------------------------------------------------------
   Future<void> startExport(ExportConfig config) async {
-    await _channel.invokeMethod('startExport', config.toMap());
+    await _methodChannel.invokeMethod('startExport', config.toMap());
   }
 
+  /// Export progress stream (0.0 to 1.0)
   Stream<double> get exportProgress {
-    return _channel
-    
-        .receiveBroadcastStream()
-        .where((event) => event is Map && event['type'] == 'exportProgress')
-        .map((event) => (event['progress'] as num).toDouble());
+    return _progressChannel.receiveBroadcastStream().map((event) {
+      if (event is int) return event / 100.0;
+      if (event is double) return event;
+      return 0.0;
+    });
   }
 
+  /// Export status stream (e.g., 'exporting', 'completed', 'error')
   Stream<String> get exportStatus {
-    return _channel
-        .receiveBroadcastStream()
-        .where((event) => event is Map && event['type'] == 'exportStatus')
-        .map((event) => event['status'] as String);
+    return _progressChannel.receiveBroadcastStream().map((event) {
+      if (event is String) return event;
+      return event.toString();
+    });
   }
 }
 
@@ -140,7 +161,7 @@ class VideoMetadata {
     required this.frameRate,
   });
 
-  factory VideoMetadata.fromMap(Map<dynamic, dynamic> map) {
+  factory VideoMetadata.fromMap(Map<String, dynamic> map) {
     return VideoMetadata(
       width: map['width'] as int,
       height: map['height'] as int,

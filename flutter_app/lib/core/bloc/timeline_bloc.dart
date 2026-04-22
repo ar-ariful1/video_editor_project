@@ -1131,11 +1131,7 @@ class TimelineBloc extends Bloc<TimelineEvent, TimelineState> {
       final clips = track.clips
           .map((c) => c.id == event.clip.id ? event.clip : c)
           .toList();
-      final updatedProject = _updateTrackInProject(project, track.copyWith(clips: clips));
-      
-      // SYNC WITH NATIVE ENGINE
-      TimelineEngine().renderFrame(state.currentTime); 
-      
+      final updatedProject = _updateTrackInProject(project, track.copyWith(clips: clips));      
       return updatedProject;
     });
     emit(newState);

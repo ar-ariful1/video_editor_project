@@ -54,7 +54,7 @@ dependencies:
   google_sign_in: ^6.2.1
   linked_scroll_controller: ^0.2.0
   flutter_native_splash: ^2.4.7
-  file_picker: ^11.0.2
+  file_picker: ^6.0.0
 
 dev_dependencies:
   flutter_test:

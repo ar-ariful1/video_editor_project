@@ -94,22 +94,21 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _loadClipToEngine(Clip clip) async {
-    if (clip.mediaType == 'video') {
-      final metadata = await _engine.loadVideo(clip.mediaPath);
-      // You can store metadata if needed
-    }
+  if (clip.mediaType == 'video' && clip.mediaPath != null) {
+    final metadata = await _engine.loadVideo(clip.mediaPath!);
+    // You can store metadata if needed
   }
+ }
 
   void _togglePlayback() {
-    final state = context.read<TimelineBloc>().state;
-    if (state.isPlaying) {
-      _engine.pause();
-      context.read<TimelineBloc>().add(const Pause());
-    } else {
-      _engine.play();
-      context.read<TimelineBloc>().add(const Play());
-    }
+  final state = context.read<TimelineBloc>().state;
+  if (state.isPlaying) {
+    _engine.pause();
+  } else {
+    _engine.play();
   }
+  context.read<TimelineBloc>().add(const PlayPause());
+ }
 
   void _seekTo(double seconds) {
     _engine.seekTo((seconds * 1000000).toInt());
@@ -153,47 +152,50 @@ class _EditorScreenState extends State<EditorScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.bg,
-      appBar: _buildAppBar(),
-      body: BlocBuilder<TimelineBloc, TimelineState>(
-        builder: (context, state) {
-          if (state.project == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return Column(
-            children: [
-              Expanded(
-                flex: 4,
-                child: PreviewPlayer(
-                  project: state.project!,
-                  currentTime: state.currentTime,
-                  isPlaying: state.isPlaying,
-                  selectedClipId: state.selectedClipId,
-                ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: AppTheme.bg,
+    appBar: _buildAppBar(),
+    body: BlocBuilder<TimelineBloc, TimelineState>(
+      builder: (context, state) {
+        if (state.project == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return Column(
+          children: [
+            Expanded(
+              flex: 4,
+              child: _engineReady && _previewTextureId != null
+                  ? PreviewPlayer(
+                      engine: _engine,
+                      textureId: _previewTextureId!,
+                      onTimeUpdate: (time) {
+                        context.read<TimelineBloc>().add(UpdateCurrentTime(time));
+                      },
+                    )
+                  : const Center(child: CircularProgressIndicator()),
+            ),
+            _buildToolbar(),
+            Expanded(
+              flex: 5,
+              child: TimelineWidget(
+                project: state.project!,
+                currentTime: state.currentTime,
+                zoom: state.zoom,
+                selectedClipId: state.selectedClipId,
+                selectedClipIds: state.selectedClipIds,
+                isMultiSelectMode: state.isMultiSelectMode,
               ),
-              _buildToolbar(),
-              Expanded(
-                flex: 5,
-                child: TimelineWidget(
-                  project: state.project!,
-                  currentTime: state.currentTime,
-                  zoom: state.zoom,
-                  selectedClipId: state.selectedClipId,
-                  selectedClipIds: state.selectedClipIds,
-                  isMultiSelectMode: state.isMultiSelectMode,
-                ),
-              ),
-              if (_isPanelOpen) _buildSidePanel(),
-              _buildFooter(state),
-            ],
-          );
-        },
-      ),
-    );
-  }
+            ),
+            if (_isPanelOpen) _buildSidePanel(),
+            _buildFooter(state),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   Widget _buildFooter(TimelineState state) {
     final selectedClipId = state.selectedClipId;

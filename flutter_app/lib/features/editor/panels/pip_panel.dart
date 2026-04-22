@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app_theme.dart';
 import '../../../core/bloc/timeline_bloc.dart';
 import '../../../core/models/video_project.dart';
+import '../../core/extensions/iterable_extensions.dart';
 
 class PiPPanel extends StatefulWidget {
   const PiPPanel({super.key});

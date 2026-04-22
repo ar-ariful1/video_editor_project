@@ -5,18 +5,18 @@ import '../../../core/services/native_engine_service.dart';
 class PreviewPlayer extends StatefulWidget {
   final bool isPlaying;
   final double currentTime;
-  final Function(double) onTimeUpdate;
+  final Function(double)? onTimeUpdate;
 
   const PreviewPlayer({
-    Key? key,
+    super.key,
     required this.isPlaying,
     required this.currentTime,
-    required this.onTimeUpdate,
-  }) : super(key: key);
-
-  @override
-  _PreviewPlayerState createState() => _PreviewPlayerState();
+    this.onTimeUpdate,
+  });
 }
+
+ 
+
 
 class _PreviewPlayerState extends State<PreviewPlayer> {
   int? _textureId;
@@ -51,8 +51,8 @@ class _PreviewPlayerState extends State<PreviewPlayer> {
   void _startPlayback() {
     _timer?.cancel();
     _timer = Timer.periodic(Duration(milliseconds: 33), (timer) {
-      _localTime += 1 / 30; // assume 30fps
-      widget.onTimeUpdate(_localTime);
+      _localTime += 1 / 30; 
+      widget.onTimeUpdate?.call(_localTime);
       NativeEngineService().renderFrame(_localTime);
     });
   }
